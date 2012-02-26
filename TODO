@@ -1,0 +1,20 @@
+TODO
+====
+
+* implement http server
+* allow database queries and return results as json
+
+index.go
+--------
+* cleanup function: Delete all entries from Track whose timestamp (dbmtime) is
+  outdated. Also need to cleanup entries in Artist and Album, that are not
+  referenced any more by Track table
+* method(s) to query the database
+* statistics, verbosity
+
+
+LONGTERM
+========
+
+* investigate in Zeroconf/Avahi
+* implement inotify
