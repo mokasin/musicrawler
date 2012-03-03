@@ -3,6 +3,7 @@ TODO
 
 * implement http server
 * allow database queries and return results as json
+* write tests
 
 index.go
 --------

@@ -1,0 +1,30 @@
+musicrawler
+===========
+
+Description
+-----------
+musicrawler is fast mp3/ogg/… indexer that offers it's service over the net via
+HTTP/Json.
+
+Status
+------
+At the moment, the basic indexing engine is operational.
+
+More is to come.
+
+Dependencies
+------------
+* TagLib via the C-interface for reading tag metadata 
+  (http://developer.kde.org/~wheeler/taglib.html)
+* gotaglib
+* go-sqlite3 by Yasuhiro Matsumoto (https://github.com/mattn/go-sqlite3)
+
+Build
+-----
+
+	$ go build musicrawler
+
+License
+-------
+GNU General Public License Version 3 or above
+http://www.gnu.org/licenses/gpl.txt
