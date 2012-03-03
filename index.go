@@ -96,12 +96,6 @@ func (i *Index) CreateDatabase() error {
 	return tx.Commit()
 }
 
-func (i *Index) updatemetadata(path string, stmt *sql.Stmt) error {
-	//	tag, err := gotaglib.NewTaggedFile(path)
-	//	return err
-	return nil
-}
-
 type dbUpdateTrack struct {
 	path         string
 	mtime        int64
@@ -115,6 +109,7 @@ type dbUpdateTrack struct {
 // TODO doc
 func (i *Index) updatetrack(ut *dbUpdateTrack, dbmtime int64, tx *sql.Tx) error {
 
+	// TODO use map
 	const (
 		ARTIST_INSERT = iota
 		ALBUM_INSERT
@@ -267,7 +262,8 @@ func (i *Index) Update(list *list.List) (timestamp int64, err error) {
 				mtime:        fi.ModTime().Unix(),
 				mtimeChanged: false}
 
-			err = stmtQuery.QueryRow(ut.path, ut.mtime).Scan()
+			var entry string
+			err = stmtQuery.QueryRow(ut.path, ut.mtime).Scan(&entry)
 
 			// CAUTION: The query is empty, if the file hasn't changed or if
 			// there is no corresponding entry in the database!
@@ -281,6 +277,9 @@ func (i *Index) Update(list *list.List) (timestamp int64, err error) {
 			// update or add the database entry
 			err = i.updatetrack(ut, timestamp, tx)
 			if err != nil {
+				//FIXME inform the caller that something is wrong
+				continue
+				//FIXME Don't write something out!
 				fmt.Println(err)
 			}
 		}

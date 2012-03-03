@@ -54,6 +54,8 @@ func main() {
 		dir = flag.Arg(0)
 	}
 
+	fmt.Println("-> Digg filesystem.")
+
 	filelist := getfilelist(dir)
 
 	db_exists := fileexist(databasefn)
@@ -77,6 +79,8 @@ func main() {
 			return
 		}
 	}
+
+	fmt.Println("-> Update files.")
 
 	// Add all found files into Database
 	if _, err := index.Update(filelist); err != nil {

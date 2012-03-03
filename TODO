@@ -4,6 +4,7 @@ TODO
 * implement http server
 * allow database queries and return results as json
 * write tests
+* update the database in a goroutine
 
 index.go
 --------
@@ -12,6 +13,7 @@ index.go
   referenced any more by Track table
 * method(s) to query the database
 * statistics, verbosity
+* don't add empty artist or album
 
 
 LONGTERM
