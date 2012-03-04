@@ -1,4 +1,4 @@
-TODO
+Todo
 ====
 
 * implement http server
@@ -9,14 +9,16 @@ TODO
 index.go
 --------
 * cleanup function: Delete all entries from Track whose timestamp (dbmtime) is
-  outdated. Also need to cleanup entries in Artist and Album, that are not
+  outdated
+* Also need to cleanup entries in Artist and Album, that are not
   referenced any more by Track table
 * method(s) to query the database
 * statistics, verbosity
 * don't add empty artist or album
+* timing (how long did this or that action take)
 
 
-LONGTERM
+Longterm
 ========
 
 * investigate in Zeroconf/Avahi

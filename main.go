@@ -83,7 +83,11 @@ func main() {
 	fmt.Println("-> Update files.")
 
 	// Add all found files into Database
-	if _, err := index.Update(filelist); err != nil {
+	result, err := index.Update(filelist)
+	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 	}
+	fmt.Println("--------------")
+	fmt.Printf("added: %d; updated: %d; deleted: %d; errors: %d\n",
+		result.added, result.updated, result.deleted, result.errors)
 }

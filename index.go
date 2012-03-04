@@ -19,7 +19,6 @@ package main
 import (
 	"container/list"
 	"database/sql"
-	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"gotaglib"
 	"os"
@@ -96,42 +95,40 @@ func (i *Index) CreateDatabase() error {
 	return tx.Commit()
 }
 
-type dbUpdateTrack struct {
-	path         string
-	mtime        int64
-	mtimeChanged bool
+// define updateTrackRecord actions
+const (
+	TRACK_NOUPDATE = iota
+	TRACK_UPDATE
+	TRACK_ADD
+)
+
+// Information needed for updating an entry in the database.
+// action is.
+type updateTrackRecord struct {
+	path   string
+	mtime  int64
+	action uint8 // one of consts above
 }
 
 // Adds or updates a track to or in the database. It requires a transaction, on
 // which it can act.
-//
-// ui.retag == false, if 
 // TODO doc
-func (i *Index) updatetrack(ut *dbUpdateTrack, dbmtime int64, tx *sql.Tx) error {
+func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
+	tx *sql.Tx) error {
 
-	// TODO use map
-	const (
-		ARTIST_INSERT = iota
-		ALBUM_INSERT
-		TRACK_NORETAG
-		TRACK_UPDATE
-		TRACK_INSERT
-	)
-
-	sqls := []string{
-		"INSERT INTO Artist(name) VALUES (?);",
-		"INSERT INTO Album(name)  VALUES (?);",
-		"UPDATE Track SET dbmtime = ? WHERE path = ?;",
-		`UPDATE Track SET
+	sqls := map[string]string{
+		"artist insert":   "INSERT INTO Artist(name) VALUES (?);",
+		"album insert":    "INSERT INTO Album(name)  VALUES (?);",
+		"track timestamp": "UPDATE Track SET dbmtime = ? WHERE path = ?;",
+		"track update": `UPDATE Track SET
 			title       = ?,
 			trackartist = (SELECT ID FROM Artist WHERE name = ?),
 			trackalbum  = (SELECT ID FROM Album  WHERE name = ?),
 			tracknumber = ?,
 			year        = ?,
-			filemtime   = ?,
-			dbmtime     = ?
+			filemtime   = ?
 			WHERE path = ?;`,
-		`INSERT INTO Track(
+		"track insert": `INSERT INTO Track(
 			path,
 			title,
 			trackartist,
@@ -147,72 +144,58 @@ func (i *Index) updatetrack(ut *dbUpdateTrack, dbmtime int64, tx *sql.Tx) error 
 			 ?, ?, ?, ?);`,
 	}
 
-	// see if the entry exists in the database and update the timestamp
-	if !ut.mtimeChanged {
-		r, err := tx.Exec(sqls[TRACK_NORETAG],
-			dbmtime,
-			ut.path,
-		)
-		if err != nil {
+	// update the timestamp if the track is in the database
+	if utr.action == TRACK_NOUPDATE || utr.action == TRACK_UPDATE {
+		if _, err := tx.Exec(sqls["track timestamp"], dbmtime,
+			utr.path); err != nil {
 			return err
 		}
 
-		affected, _ := r.RowsAffected()
-
-		// if there was an entry, there is nothing more todo
-		if affected != 0 {
-			//TODO return result of successfull operations
+		// nothing more to do
+		if utr.action == TRACK_NOUPDATE {
 			return nil
 		}
 	}
 
-	// (ui.mtimeChanged == true) mtime has changed
-	// (ui.mtimeChanged == false) or the track is not in the database
-
-	tag, err := gotaglib.NewTaggedFile(ut.path)
+	tag, err := gotaglib.NewTaggedFile(utr.path)
 	if err != nil {
-		// FIXME no database entry is created!
 		return err
 	}
 
 	// FIXME the error handling really! sucks
 	// first make sure artist and album exist in database	
-	if _, err := tx.Exec(sqls[ARTIST_INSERT], tag.Artist); err != nil &&
+	if _, err := tx.Exec(sqls["artist insert"], tag.Artist); err != nil &&
 		err.Error() != "column name is not unique" {
 		return err
 	}
-	if _, err := tx.Exec(sqls[ALBUM_INSERT], tag.Album); err != nil &&
+	if _, err := tx.Exec(sqls["album insert"], tag.Album); err != nil &&
 		err.Error() != "column name is not unique" {
 		return err
 	}
 
-	if ut.mtimeChanged {
-		// the track is in the database and it needs to be updated
-		_, err = tx.Exec(sqls[TRACK_UPDATE],
+	switch utr.action {
+	case TRACK_UPDATE: // the track is in the database and it needs to be updated
+		_, err = tx.Exec(sqls["track update"],
 			tag.Title,
 			tag.Artist,
 			tag.Album,
 			tag.Track,
 			tag.Year,
-			ut.mtime,
-			dbmtime,
-			ut.path,
+			utr.mtime,
+			utr.path,
 		)
 		if err != nil {
 			return err
 		}
-	} else {
-		// the track is not in the database and needs to be added
-
-		// add new entry
-		_, err = tx.Exec(sqls[TRACK_INSERT],
-			ut.path,
+	case TRACK_ADD: // the track is not in the database and needs to be added
+		_, err = tx.Exec(sqls["track insert"],
+			utr.path,
 			tag.Title,
 			tag.Artist,
 			tag.Album,
 			tag.Track,
 			tag.Year,
-			ut.mtime,
+			utr.mtime,
 			dbmtime,
 		)
 		if err != nil {
@@ -223,27 +206,43 @@ func (i *Index) updatetrack(ut *dbUpdateTrack, dbmtime int64, tx *sql.Tx) error 
 	return nil
 }
 
-func (i *Index) DeleteDanglingEntries(dbmtime int64) error {
-	return nil
+//TODO doc, return list of delete entries
+func (i *Index) deleteDanglingEntries(dbmtime int64) (sql.Result, error) {
+	stmt, err := i.db.Prepare("DELETE FROM Track WHERE dbmtime <> ?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	return stmt.Exec(dbmtime)
 }
 
-// UpdateFiles takes a list of MtimeFileInfo and tries to update all entries
-// concerning modified time and file path. If there is no entry to update, one
-// is created.
-func (i *Index) Update(list *list.List) (timestamp int64, err error) {
+type UpdateResult struct {
+	added     int64
+	updated   int64
+	deleted   int64
+	errors    int64
+	timestamp int64
+}
+
+// TODO: Add pathes to results, return database error messages
+// Updates or adds tracks in list. Delete all entries not in list.
+func (i *Index) Update(list *list.List) (*UpdateResult, error) {
 	// Get current time to set modify time of database entry
-	timestamp = time.Now().Unix()
+
+	result := new(UpdateResult)
+	result.timestamp = time.Now().Unix()
 
 	tx, err := i.db.Begin()
 	if err != nil {
-		return timestamp, err
+		return nil, err
 	}
 
 	// get tracks that need to be updated
 	stmtQuery, err := i.db.Prepare(
-		"SELECT path FROM Track WHERE path = ? AND filemtime <> ?")
+		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer stmtQuery.Close()
 
@@ -254,44 +253,58 @@ func (i *Index) Update(list *list.List) (timestamp int64, err error) {
 		if ok {
 			fi, err := os.Stat(path)
 			if err != nil {
+				//FIXME is it safe to depend on mtime?
 				continue
 			}
 
-			ut := &dbUpdateTrack{
-				path:         path,
-				mtime:        fi.ModTime().Unix(),
-				mtimeChanged: false}
+			var trackAction uint8 = TRACK_NOUPDATE
+			var trackPath string
+			var trackFilemtime int64
 
-			var entry string
-			err = stmtQuery.QueryRow(ut.path, ut.mtime).Scan(&entry)
-
-			// CAUTION: The query is empty, if the file hasn't changed or if
-			// there is no corresponding entry in the database!
-
-			// if file exists and has changed
-			// FIXME be more precise with error handling
-			if err == nil {
-				ut.mtimeChanged = true
+			switch err := stmtQuery.QueryRow(path).Scan(&trackPath,
+				&trackFilemtime); {
+			case err == nil:
+				if fi.ModTime().Unix() != trackFilemtime {
+					trackAction = TRACK_UPDATE // update track
+				}
+			case err == sql.ErrNoRows:
+				trackAction = TRACK_ADD // add track to db
+			case err != nil:
+				result.errors++
+				continue //FIXME inform the caller that something is wrong
 			}
+
+			utr := &updateTrackRecord{
+				path:   path,
+				mtime:  fi.ModTime().Unix(),
+				action: trackAction}
 
 			// update or add the database entry
-			err = i.updatetrack(ut, timestamp, tx)
-			if err != nil {
-				//FIXME inform the caller that something is wrong
-				continue
-				//FIXME Don't write something out!
-				fmt.Println(err)
+			if err := i.updatetrack(utr, result.timestamp, tx); err != nil {
+				result.errors++
+				continue //FIXME inform the caller that something is wrong
+			}
+			switch trackAction {
+			case TRACK_UPDATE:
+				result.updated++
+			case TRACK_ADD:
+				result.added++
 			}
 		}
 	}
 
 	// commit transaction
 	if err := tx.Commit(); err != nil {
-		return timestamp, err
+		return nil, err
 	}
 
-	err = i.DeleteDanglingEntries(timestamp)
-	return timestamp, nil
+	if r, err := i.deleteDanglingEntries(result.timestamp); err == nil {
+		result.deleted, _ = r.RowsAffected()
+	} else {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // Returns a gotaglib.TaggedFile with all information about the track with
