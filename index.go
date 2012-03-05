@@ -206,15 +206,37 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 	return nil
 }
 
-//TODO doc, return list of delete entries
-func (i *Index) deleteDanglingEntries(dbmtime int64) (sql.Result, error) {
+// Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
+// entries in Artist and Album table that are not referenced everymore in Track.
+//
+// Returns the number of deleted rows.
+func (i *Index) deleteDanglingEntries(dbmtime int64) (int64, error) {
 	stmt, err := i.db.Prepare("DELETE FROM Track WHERE dbmtime <> ?")
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer stmt.Close()
 
-	return stmt.Exec(dbmtime)
+	r, err := stmt.Exec(dbmtime)
+	deletedTracks, _ := r.RowsAffected()
+	if err != nil {
+		return deletedTracks, err
+	}
+
+	if _, err := i.db.Exec("DELETE FROM Artist WHERE ID IN " +
+		"(SELECT Artist.ID FROM Artist LEFT JOIN Track ON " +
+		"Artist.ID = Track.trackartist WHERE Track.trackartist " +
+		"IS NULL);"); err != nil {
+		return deletedTracks, err
+	}
+	if _, err := i.db.Exec("DELETE FROM Album WHERE ID IN " +
+		"(SELECT Album.ID FROM Album LEFT JOIN Track ON " +
+		"Album.ID = Track.trackalbum WHERE Track.trackalbum " +
+		"IS NULL);"); err != nil {
+		return deletedTracks, err
+	}
+
+	return deletedTracks, nil
 }
 
 type UpdateResult struct {
@@ -298,13 +320,10 @@ func (i *Index) Update(list *list.List) (*UpdateResult, error) {
 		return nil, err
 	}
 
-	if r, err := i.deleteDanglingEntries(result.timestamp); err == nil {
-		result.deleted, _ = r.RowsAffected()
-	} else {
-		return nil, err
-	}
+	deletedTracks, err := i.deleteDanglingEntries(result.timestamp)
+	result.deleted = deletedTracks
 
-	return result, nil
+	return result, err
 }
 
 // Returns a gotaglib.TaggedFile with all information about the track with
