@@ -90,10 +90,10 @@ func main() {
 
 	var added, updated int
 	var status *UpdateStatus
-	var result error
+	var result *UpdateResult
 
 	statusChannel := make(chan *UpdateStatus)
-	resultChannel := make(chan error)
+	resultChannel := make(chan *UpdateResult)
 
 	// Add all found files into Database
 	go index.Update(filelist, statusChannel, resultChannel)
@@ -118,5 +118,10 @@ TRACKUPDATE:
 		}
 	}
 
-	fmt.Println(result, added, updated)
+	if result.err != nil {
+		fmt.Println("DATABASE ERROR:", result.err)
+	}
+
+	fmt.Printf("Added: %d\tUpdated: %d\tDeleted: %d\n", added, updated,
+		result.deleted)
 }

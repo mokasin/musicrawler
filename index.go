@@ -30,7 +30,7 @@ type Index struct {
 	db       *sql.DB
 }
 
-// SQL queries to create the dabase schema
+// SQL queries to create the database schema
 const sql_create_artist = `
 	CREATE TABLE Artist
 	(
@@ -116,6 +116,7 @@ type updateTrackRecord struct {
 func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 	tx *sql.Tx) error {
 
+	// SQL queries for all possible actions in a map
 	sqls := map[string]string{
 		"artist insert":   "INSERT OR IGNORE INTO Artist(name) VALUES (?);",
 		"album insert":    "INSERT OR IGNORE INTO Album(name)  VALUES (?);",
@@ -151,7 +152,7 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 			return err
 		}
 
-		// nothing more to do
+		// nothing more to do, everything is up to date
 		if utr.action == TRACK_NOUPDATE {
 			return nil
 		}
@@ -204,7 +205,7 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 }
 
 // Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
-// entries in Artist and Album table that are not referenced everymore in Track.
+// entries in Artist and Album table that are not referenced evermore in Track.
 //
 // Returns the number of deleted rows.
 func (i *Index) deleteDanglingEntries(dbmtime int64) (int64, error) {
@@ -280,19 +281,21 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 	var trackPath string
 	var trackFilemtime int64
 
-	// update and add…
+	// traverse filelist and update or add database entries
 	for e := list.Front(); e != nil; e = e.Next() {
 		path, ok := e.Value.(string)
 		if ok {
 			var utr *updateTrackRecord
 			var err error
 
+			//FIXME is it safe to depend on mtime?
+			// get current information about file (mtime)
 			fi, err := os.Stat(path)
 			if err != nil {
-				//FIXME is it safe to depend on mtime?
 				goto STATUS
 			}
 
+			// check if mtime has changed and decide what to do
 			switch err := rows.QueryRow(path).Scan(&trackPath,
 				&trackFilemtime); {
 			case err == nil:
@@ -302,9 +305,10 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 			case err == sql.ErrNoRows:
 				trackAction = TRACK_ADD // add track to db
 			case err != nil:
-				goto STATUS
+				goto STATUS // something went wrong
 			}
 
+			// prepare the record
 			utr = &updateTrackRecord{
 				path:   path,
 				mtime:  fi.ModTime().Unix(),
