@@ -167,7 +167,7 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 	if _, err := tx.Exec(sqls["artist insert"], tag.Artist); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(sqls["album insert"], tag.Artist); err != nil {
+	if _, err := tx.Exec(sqls["album insert"], tag.Album); err != nil {
 		return err
 	}
 
