@@ -4,19 +4,19 @@ Todo
 * implement http server
 * allow database queries and return results as json
 * write tests
-* update the database in a goroutine
 
 index.go
 --------
-* cleanup function: Delete all entries from Track whose timestamp (dbmtime) is
-  outdated
-* Also need to cleanup entries in Artist and Album, that are not
-  referenced any more by Track table
 * method(s) to query the database
 * statistics, verbosity
 * don't add empty artist or album
 * timing (how long did this or that action take)
+* don't read mtime, it's the task of the filecrawler!
 
+filecrawler.go
+--------------
+* cleanup
+* create a abstract source interface that is fulfilled by the filecrawler
 
 Longterm
 ========

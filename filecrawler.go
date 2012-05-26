@@ -25,14 +25,11 @@ type walker struct {
 	receiver  chan<- string
 }
 
-// Is called from the filepath.Walk for every directory or file. Sends matching
-// (regarding walker.Filetypes) filepathes to the channel defined in the walker
-// struct
+// Sends path to w.receiver channel, if fileextension matches one of Filetypes.
 func (w *walker) walkfunc(path string, info os.FileInfo, err error) error {
 	for _, v := range w.Filetypes {
 		if filepath.Ext(path) == "."+v {
 			w.receiver <- path
-
 			break
 		}
 	}
@@ -41,11 +38,11 @@ func (w *walker) walkfunc(path string, info os.FileInfo, err error) error {
 }
 
 // Sends all filepathes of type filetypes to the receiver channel. Is meant to
-// be a goroutine
+// be a goroutine.
 func CrawlFiles(dir string, filetypes []string, receiver chan<- string) {
 	w := &walker{Dir: dir, Filetypes: filetypes, receiver: receiver}
 
-	// have to use Closure because argument as to be a function not a method
+	// have to use closure because argument as to be a function not a method
 	filepath.Walk(dir,
 		func(p string, i os.FileInfo, e error) error {
 			return w.walkfunc(p, i, e)

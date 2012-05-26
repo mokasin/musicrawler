@@ -61,6 +61,7 @@ func main() {
 	db_exists := fileexist(databasefn)
 
 	fmt.Println("-> Open database:", databasefn)
+
 	// open or create database
 	index, err := NewDatabase(databasefn)
 	if err != nil {
@@ -82,12 +83,40 @@ func main() {
 
 	fmt.Println("-> Update files.")
 
+	var statusMsg [3]string
+	statusMsg[TRACK_NOUPDATE] = "NUP"
+	statusMsg[TRACK_UPDATE] = "UPD"
+	statusMsg[TRACK_ADD] = "ADD"
+
+	var added, updated int
+	var status *UpdateStatus
+	var result error
+
+	statusChannel := make(chan *UpdateStatus)
+	resultChannel := make(chan error)
+
 	// Add all found files into Database
-	result, err := index.Update(filelist)
-	if err != nil {
-		fmt.Println("DATABASE ERROR:", err)
+	go index.Update(filelist, statusChannel, resultChannel)
+
+TRACKUPDATE:
+	for {
+		select {
+		case status = <-statusChannel:
+			if status.err != nil {
+				fmt.Println("DATABASE ERROR (", status.path, "):", status.err)
+			} else {
+				switch status.action {
+				case TRACK_UPDATE:
+					updated++
+				case TRACK_ADD:
+					added++
+				}
+				//fmt.Println(statusMsg[status.action], status.path)
+			}
+		case result = <-resultChannel:
+			break TRACKUPDATE
+		}
 	}
-	fmt.Println("--------------")
-	fmt.Printf("added: %d; updated: %d; deleted: %d; errors: %d\n",
-		result.added, result.updated, result.deleted, result.errors)
+
+	fmt.Println(result, added, updated)
 }

@@ -117,8 +117,8 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 	tx *sql.Tx) error {
 
 	sqls := map[string]string{
-		"artist insert":   "INSERT INTO Artist(name) VALUES (?);",
-		"album insert":    "INSERT INTO Album(name)  VALUES (?);",
+		"artist insert":   "INSERT OR IGNORE INTO Artist(name) VALUES (?);",
+		"album insert":    "INSERT OR IGNORE INTO Album(name)  VALUES (?);",
 		"track timestamp": "UPDATE Track SET dbmtime = ? WHERE path = ?;",
 		"track update": `UPDATE Track SET
 			title       = ?,
@@ -162,19 +162,16 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 		return err
 	}
 
-	// FIXME the error handling really! sucks
 	// first make sure artist and album exist in database	
-	if _, err := tx.Exec(sqls["artist insert"], tag.Artist); err != nil &&
-		err.Error() != "column name is not unique" {
+	if _, err := tx.Exec(sqls["artist insert"], tag.Artist); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(sqls["album insert"], tag.Album); err != nil &&
-		err.Error() != "column name is not unique" {
+	if _, err := tx.Exec(sqls["album insert"], tag.Artist); err != nil {
 		return err
 	}
 
 	switch utr.action {
-	case TRACK_UPDATE: // the track is in the database and it needs to be updated
+	case TRACK_UPDATE: // the track is in the database and needs to be updated
 		_, err = tx.Exec(sqls["track update"],
 			tag.Title,
 			tag.Artist,
@@ -239,51 +236,54 @@ func (i *Index) deleteDanglingEntries(dbmtime int64) (int64, error) {
 	return deletedTracks, nil
 }
 
-type UpdateResult struct {
-	added     int64
-	updated   int64
-	deleted   int64
-	errors    int64
-	timestamp int64
+type UpdateStatus struct {
+	path   string
+	action uint8
+	err    error
 }
 
-// TODO: Add pathes to results, return database error messages
-// Updates or adds tracks in list. Delete all entries not in list.
-func (i *Index) Update(list *list.List) (*UpdateResult, error) {
+// Updates or adds tra")s in list. Delete all entries not in list.
+func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
+	result chan<- error) {
 	// Get current time to set modify time of database entry
 
-	result := new(UpdateResult)
-	result.timestamp = time.Now().Unix()
+	//result := new(UpdateResult)
+	//result.timestamp = time.Now().Unix()
+	timestamp := time.Now().Unix()
 
 	tx, err := i.db.Begin()
 	if err != nil {
-		return nil, err
+		result <- err
+		return
 	}
 
 	// get tracks that need to be updated
-	stmtQuery, err := i.db.Prepare(
+	rows, err := i.db.Prepare(
 		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
-		return nil, err
+		result <- err
+		return
 	}
-	defer stmtQuery.Close()
+	defer rows.Close()
+
+	var trackAction uint8 = TRACK_NOUPDATE
+	var trackPath string
+	var trackFilemtime int64
 
 	// update and add…
 	for e := list.Front(); e != nil; e = e.Next() {
-
 		path, ok := e.Value.(string)
 		if ok {
+			var utr *updateTrackRecord
+			var err error
+
 			fi, err := os.Stat(path)
 			if err != nil {
 				//FIXME is it safe to depend on mtime?
-				continue
+				goto STATUS
 			}
 
-			var trackAction uint8 = TRACK_NOUPDATE
-			var trackPath string
-			var trackFilemtime int64
-
-			switch err := stmtQuery.QueryRow(path).Scan(&trackPath,
+			switch err := rows.QueryRow(path).Scan(&trackPath,
 				&trackFilemtime); {
 			case err == nil:
 				if fi.ModTime().Unix() != trackFilemtime {
@@ -292,38 +292,30 @@ func (i *Index) Update(list *list.List) (*UpdateResult, error) {
 			case err == sql.ErrNoRows:
 				trackAction = TRACK_ADD // add track to db
 			case err != nil:
-				result.errors++
-				continue //FIXME inform the caller that something is wrong
+				goto STATUS
 			}
 
-			utr := &updateTrackRecord{
+			utr = &updateTrackRecord{
 				path:   path,
 				mtime:  fi.ModTime().Unix(),
 				action: trackAction}
 
 			// update or add the database entry
-			if err := i.updatetrack(utr, result.timestamp, tx); err != nil {
-				result.errors++
-				continue //FIXME inform the caller that something is wrong
-			}
-			switch trackAction {
-			case TRACK_UPDATE:
-				result.updated++
-			case TRACK_ADD:
-				result.added++
-			}
+			err = i.updatetrack(utr, timestamp, tx)
+
+		STATUS:
+			status <- &UpdateStatus{path: path, action: trackAction, err: err}
 		}
 	}
 
 	// commit transaction
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		result <- err
+		return
 	}
 
-	deletedTracks, err := i.deleteDanglingEntries(result.timestamp)
-	result.deleted = deletedTracks
-
-	return result, err
+	_, err = i.deleteDanglingEntries(timestamp)
+	result <- err
 }
 
 // Returns a gotaglib.TaggedFile with all information about the track with
