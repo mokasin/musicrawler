@@ -236,24 +236,34 @@ func (i *Index) deleteDanglingEntries(dbmtime int64) (int64, error) {
 	return deletedTracks, nil
 }
 
+// Reports if update on path with action was successful.
 type UpdateStatus struct {
 	path   string
 	action uint8
 	err    error
 }
 
-// Updates or adds tra")s in list. Delete all entries not in list.
-func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
-	result chan<- error) {
-	// Get current time to set modify time of database entry
+// Reports how many tracks were deleted and if the operation was successful.
+type UpdateResult struct {
+	deleted int64
+	err     error
+}
 
-	//result := new(UpdateResult)
-	//result.timestamp = time.Now().Unix()
+// Updates or adds tracks in list. Delete all entries not in list.
+//
+// Requires a channel for updates on tracks and a result channel. If the
+// function finishes, an UpdateResult goes down the result channel.
+func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
+	result chan<- *UpdateResult) {
+
+	// Get current time to set modify time of database entry
 	timestamp := time.Now().Unix()
+
+	var deletedTracks int64
 
 	tx, err := i.db.Begin()
 	if err != nil {
-		result <- err
+		result <- &UpdateResult{deleted: deletedTracks, err: err}
 		return
 	}
 
@@ -261,7 +271,7 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 	rows, err := i.db.Prepare(
 		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
-		result <- err
+		result <- &UpdateResult{deleted: deletedTracks, err: err}
 		return
 	}
 	defer rows.Close()
@@ -310,16 +320,17 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 
 	// commit transaction
 	if err := tx.Commit(); err != nil {
-		result <- err
+		result <- &UpdateResult{deleted: deletedTracks, err: err}
 		return
 	}
 
-	_, err = i.deleteDanglingEntries(timestamp)
-	result <- err
+	// remove tracks that are not anymore in the filesystem
+	deletedTracks, err = i.deleteDanglingEntries(timestamp)
+	result <- &UpdateResult{deleted: deletedTracks, err: err}
 }
 
 // Returns a gotaglib.TaggedFile with all information about the track with
-// filename 'filename'
+// filename 'filename'.
 func (i *Index) GetTrackByFile(filename string) (t *gotaglib.TaggedFile,
 	err error) {
 
