@@ -277,7 +277,7 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 	}
 	defer rows.Close()
 
-	var trackAction uint8 = TRACK_NOUPDATE
+	var trackAction uint8
 	var trackPath string
 	var trackFilemtime int64
 
@@ -294,6 +294,9 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 			if err != nil {
 				goto STATUS
 			}
+
+			// default action
+			trackAction = TRACK_NOUPDATE
 
 			// check if mtime has changed and decide what to do
 			switch err := rows.QueryRow(path).Scan(&trackPath,
