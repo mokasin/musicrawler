@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"gotaglib"
+	"os"
 	"time"
 )
 
@@ -58,12 +59,20 @@ const sql_create_track = `
 // Creates a new Index struct and connects it to the database at filename.
 // Needs to be closed with method Close()!
 func NewIndex(filename string) (*Index, error) {
+	_, err := os.Stat(filename)
+	newdatabase := os.IsNotExist(err)
+
 	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Index{Filename: filename, db: db}, nil
+	i := &Index{Filename: filename, db: db}
+	if newdatabase {
+		return i, i.createDatabase()
+	}
+
+	return i, nil
 }
 
 // Closes the opened database.
@@ -72,7 +81,7 @@ func (i *Index) Close() {
 }
 
 // Creates the basic database structure
-func (i *Index) CreateDatabase() error {
+func (i *Index) createDatabase() error {
 	sqls := []string{
 		sql_create_artist,
 		sql_create_album,
@@ -280,12 +289,12 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 	var trackPath string
 	var trackFilemtime int64
 
+	var utr *updateTrackRecord = &updateTrackRecord{}
+
 	// traverse filelist and update or add database entries
 	for e := list.Front(); e != nil; e = e.Next() {
 		fi, ok := e.Value.(*FileInfo)
 		if ok {
-			var utr *updateTrackRecord
-			var err error
 
 			//FIXME is it safe to depend on mtime?
 

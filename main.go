@@ -20,15 +20,16 @@ import (
 	"container/list"
 	"flag"
 	"fmt"
-	"os"
 )
 
-const databasefn = "./index.db"
+const databasefn = "index.db"
+
+var supportedFileTypes []string = []string{"mp3", "ogg"}
 
 func getfilelist(directory string) (l *list.List) {
 	recv := make(chan *FileInfo)
 
-	go CrawlFiles(directory, []string{"mp3", "ogg"}, recv)
+	go CrawlFiles(directory, supportedFileTypes, recv)
 
 	l = list.New()
 
@@ -39,61 +40,16 @@ func getfilelist(directory string) (l *list.List) {
 	return l
 }
 
-// Retruns true, if file filename exists.
-func fileexist(filename string) bool {
-	_, err := os.Stat(filename)
-	return !os.IsNotExist(err)
-}
-
-func main() {
-	flag.Parse()
-
-	dir := "."
-
-	if flag.NArg() != 0 {
-		dir = flag.Arg(0)
-	}
-
-	fmt.Println("-> Digg filesystem.")
-
-	filelist := getfilelist(dir)
-
-	db_exists := fileexist(databasefn)
-
-	fmt.Println("-> Open database:", databasefn)
-
-	// open or create database
-	index, err := NewIndex(databasefn)
-	if err != nil {
-		fmt.Println("DATABASE ERROR:", err)
-		return
-	}
-	defer index.Close()
-
-	// if database file doesn't exist, create new databse scheme
-	if !db_exists {
-		fmt.Println("-> Create database structure.")
-		err = index.CreateDatabase()
-
-		if err != nil {
-			fmt.Println("DATABASE ERROR:", err)
-			return
-		}
-	}
-
-	fmt.Println("-> Update files.")
-
-	var statusMsg [3]string
-	statusMsg[TRACK_NOUPDATE] = "NUP"
-	statusMsg[TRACK_UPDATE] = "UPD"
-	statusMsg[TRACK_ADD] = "ADD"
-
+func updateFiles(dir string, index *Index) {
 	var added, updated int
 	var status *UpdateStatus
 	var result *UpdateResult
 
 	statusChannel := make(chan *UpdateStatus)
 	resultChannel := make(chan *UpdateResult)
+
+	// get filelist
+	filelist := getfilelist(dir)
 
 	// Add all found files into Database
 	go index.Update(filelist, statusChannel, resultChannel)
@@ -103,7 +59,7 @@ TRACKUPDATE:
 		select {
 		case status = <-statusChannel:
 			if status.err != nil {
-				fmt.Println("DATABASE ERROR (", status.path, "):", status.err)
+				fmt.Printf("INDEX ERROR (%s): %v\n", status.path, status.err)
 			} else {
 				switch status.action {
 				case TRACK_UPDATE:
@@ -111,7 +67,6 @@ TRACKUPDATE:
 				case TRACK_ADD:
 					added++
 				}
-				//fmt.Println(statusMsg[status.action], status.path)
 			}
 		case result = <-resultChannel:
 			break TRACKUPDATE
@@ -124,4 +79,26 @@ TRACKUPDATE:
 
 	fmt.Printf("Added: %d\tUpdated: %d\tDeleted: %d\n", added, updated,
 		result.deleted)
+
+}
+
+func main() {
+	dir := "."
+	flag.Parse()
+	if flag.NArg() != 0 {
+		dir = flag.Arg(0)
+	}
+
+	// open or create database
+	fmt.Println("-> Open database:", databasefn)
+
+	index, err := NewIndex(databasefn)
+	if err != nil {
+		fmt.Println("DATABASE ERROR:", err)
+		return
+	}
+	defer index.Close()
+
+	fmt.Println("-> Update files.")
+	updateFiles(dir, index)
 }
