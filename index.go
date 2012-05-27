@@ -58,7 +58,7 @@ const sql_create_track = `
 
 // Creates a new Index struct and connects it to the database at filename.
 // Needs to be closed with method Close()!
-func NewDatabase(filename string) (*Index, error) {
+func NewIndex(filename string) (*Index, error) {
 	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
 		return nil, err

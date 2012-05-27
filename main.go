@@ -63,7 +63,7 @@ func main() {
 	fmt.Println("-> Open database:", databasefn)
 
 	// open or create database
-	index, err := NewDatabase(databasefn)
+	index, err := NewIndex(databasefn)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
