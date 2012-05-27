@@ -16,25 +16,60 @@
 
 package main
 
-import "os"
-import "path/filepath"
+import (
+	"gotaglib"
+	"os"
+	"path/filepath"
+)
 
 type FileInfo struct {
-	Name  string
-	Mtime int64
+	filename string
+	mtime    int64
 }
 
-type walker struct {
+func (fi *FileInfo) Path() string {
+	return fi.filename
+}
+
+func (fi *FileInfo) Mtime() int64 {
+	return fi.mtime
+}
+
+func (fi *FileInfo) Tags() (*TrackTags, error) {
+	tag, err := gotaglib.NewTaggedFile(fi.filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TrackTags{
+		Filename: tag.Filename,
+		Title:    tag.Title,
+		Artist:   tag.Artist,
+		Album:    tag.Album,
+		Comment:  tag.Comment,
+		Genre:    tag.Genre,
+		Year:     tag.Year,
+		Track:    tag.Track,
+		Bitrate:  tag.Bitrate,
+		Length:   tag.Length,
+	}, nil
+}
+
+type FileWalker struct {
 	Dir       string
 	Filetypes []string
-	receiver  chan<- *FileInfo
 }
 
-// Sends path to w.receiver channel, if fileextension matches one of Filetypes.
-func (w *walker) walkfunc(path string, info os.FileInfo, err error) error {
+func NewFileCrawler(dir string, filetypes []string) *FileWalker {
+	return &FileWalker{Dir: dir, Filetypes: filetypes}
+}
+
+// Sends TrackInfo if filetype matches one of w.Filetypes
+func (w *FileWalker) walkfunc(receiver chan<- TrackInfo, path string,
+	info os.FileInfo, err error) error {
 	for _, v := range w.Filetypes {
 		if filepath.Ext(path) == "."+v {
-			w.receiver <- &FileInfo{path, info.ModTime().Unix()}
+			receiver <- &FileInfo{filename: path, mtime: info.ModTime().Unix()}
 			break
 		}
 	}
@@ -44,14 +79,12 @@ func (w *walker) walkfunc(path string, info os.FileInfo, err error) error {
 
 // Sends all filepathes of type filetypes to the receiver channel. Is meant to
 // be a goroutine.
-func CrawlFiles(dir string, filetypes []string, receiver chan<- *FileInfo) {
-	w := &walker{Dir: dir, Filetypes: filetypes, receiver: receiver}
-
+func (w *FileWalker) Crawl(tracks chan<- TrackInfo) {
 	// have to use closure because argument as to be a function not a method
-	filepath.Walk(dir,
+	filepath.Walk(w.Dir,
 		func(p string, i os.FileInfo, e error) error {
-			return w.walkfunc(p, i, e)
+			return w.walkfunc(tracks, p, i, e)
 		})
 
-	close(receiver)
+	close(tracks)
 }

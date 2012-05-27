@@ -9,12 +9,11 @@ index.go
 --------
 * method(s) to query the database
 * timing (how long did this or that action take)
-* don't read mtime, it's the task of the filecrawler!
+* figure out, how to stop looking for messages on channel without closing it 
 
 filecrawler.go
 --------------
-* cleanup
-* create a abstract source interface that is fulfilled by the filecrawler
+* don't close the channel
 
 Longterm
 ========

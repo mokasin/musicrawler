@@ -17,7 +17,6 @@
 package main
 
 import (
-	"container/list"
 	"flag"
 	"fmt"
 )
@@ -26,33 +25,21 @@ const databasefn = "index.db"
 
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
-func getfilelist(directory string) (l *list.List) {
-	recv := make(chan *FileInfo)
-
-	go CrawlFiles(directory, supportedFileTypes, recv)
-
-	l = list.New()
-
-	for fi := range recv {
-		l.PushBack(fi)
-	}
-
-	return l
-}
-
 func updateFiles(dir string, index *Index) {
+	var filecrawler TrackSource
 	var added, updated int
 	var status *UpdateStatus
 	var result *UpdateResult
 
+	trackInfoChannel := make(chan TrackInfo)
 	statusChannel := make(chan *UpdateStatus)
 	resultChannel := make(chan *UpdateResult)
 
-	// get filelist
-	filelist := getfilelist(dir)
+	filecrawler = NewFileCrawler(dir, supportedFileTypes)
 
-	// Add all found files into Database
-	go index.Update(filelist, statusChannel, resultChannel)
+	// Plug output of CrawlFiles into index.Update over fileInfoChannel
+	go index.Update(trackInfoChannel, statusChannel, resultChannel)
+	go filecrawler.Crawl(trackInfoChannel)
 
 TRACKUPDATE:
 	for {
@@ -77,8 +64,7 @@ TRACKUPDATE:
 		fmt.Println("DATABASE ERROR:", result.err)
 	}
 
-	fmt.Printf("Added: %d\tUpdated: %d\tDeleted: %d\n", added, updated,
-		result.deleted)
+	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
 
 }
 

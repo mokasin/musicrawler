@@ -17,17 +17,16 @@
 package main
 
 import (
-	"container/list"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
-	"gotaglib"
 	"os"
 	"time"
 )
 
 type Index struct {
-	Filename string
-	db       *sql.DB
+	Filename  string
+	db        *sql.DB
+	timestamp int64
 }
 
 // SQL queries to create the database schema
@@ -113,8 +112,7 @@ const (
 // Information needed for updating an entry in the database.
 // action is.
 type updateTrackRecord struct {
-	path   string
-	mtime  int64
+	track  TrackInfo
 	action uint8 // one of consts above
 }
 
@@ -156,7 +154,7 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 	// update the timestamp if the track is in the database
 	if utr.action == TRACK_NOUPDATE || utr.action == TRACK_UPDATE {
 		if _, err := tx.Exec(sqls["track timestamp"], dbmtime,
-			utr.path); err != nil {
+			utr.track.Path()); err != nil {
 			return err
 		}
 
@@ -166,7 +164,7 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 		}
 	}
 
-	tag, err := gotaglib.NewTaggedFile(utr.path)
+	tag, err := utr.track.Tags()
 	if err != nil {
 		return err
 	}
@@ -181,27 +179,27 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 
 	switch utr.action {
 	case TRACK_UPDATE: // the track is in the database and needs to be updated
-		_, err = tx.Exec(sqls["track update"],
+		_, err := tx.Exec(sqls["track update"],
 			tag.Title,
 			tag.Artist,
 			tag.Album,
 			tag.Track,
 			tag.Year,
-			utr.mtime,
-			utr.path,
+			utr.track.Mtime(),
+			utr.track.Path(),
 		)
 		if err != nil {
 			return err
 		}
 	case TRACK_ADD: // the track is not in the database and needs to be added
-		_, err = tx.Exec(sqls["track insert"],
-			utr.path,
+		_, err := tx.Exec(sqls["track insert"],
+			utr.track.Path(),
 			tag.Title,
 			tag.Artist,
 			tag.Album,
 			tag.Track,
 			tag.Year,
-			utr.mtime,
+			utr.track.Mtime(),
 			dbmtime,
 		)
 		if err != nil {
@@ -216,7 +214,7 @@ func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
 // entries in Artist and Album table that are not referenced evermore in Track.
 //
 // Returns the number of deleted rows.
-func (i *Index) deleteDanglingEntries(dbmtime int64) (int64, error) {
+func (i *Index) DeleteDanglingEntries(dbmtime int64) (int64, error) {
 	stmt, err := i.db.Prepare("DELETE FROM Track WHERE dbmtime <> ?")
 	if err != nil {
 		return 0, err
@@ -254,25 +252,22 @@ type UpdateStatus struct {
 
 // Reports how many tracks were deleted and if the operation was successful.
 type UpdateResult struct {
-	deleted int64
-	err     error
+	err error
 }
 
 // Updates or adds tracks in list. Delete all entries not in list.
 //
 // Requires a channel for updates on tracks and a result channel. If the
 // function finishes, an UpdateResult goes down the result channel.
-func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
+func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 	result chan<- *UpdateResult) {
 
 	// Get current time to set modify time of database entry
-	timestamp := time.Now().Unix()
-
-	var deletedTracks int64
+	i.timestamp = time.Now().Unix()
 
 	tx, err := i.db.Begin()
 	if err != nil {
-		result <- &UpdateResult{deleted: deletedTracks, err: err}
+		result <- &UpdateResult{err: err}
 		return
 	}
 
@@ -280,68 +275,59 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 	rows, err := i.db.Prepare(
 		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
-		result <- &UpdateResult{deleted: deletedTracks, err: err}
+		result <- &UpdateResult{err: err}
 		return
 	}
 	defer rows.Close()
 
 	var trackAction uint8
 	var trackPath string
-	var trackFilemtime int64
+	var trackMtime int64
 
 	var utr *updateTrackRecord = &updateTrackRecord{}
 
 	// traverse filelist and update or add database entries
-	for e := list.Front(); e != nil; e = e.Next() {
-		fi, ok := e.Value.(*FileInfo)
-		if ok {
+	for ti := range tracks {
+		// default action
+		trackAction = TRACK_NOUPDATE
 
-			//FIXME is it safe to depend on mtime?
-
-			// default action
-			trackAction = TRACK_NOUPDATE
-
-			// check if mtime has changed and decide what to do
-			switch err := rows.QueryRow(fi.Name).Scan(&trackPath,
-				&trackFilemtime); {
-			case err == nil:
-				if fi.Mtime != trackFilemtime {
-					trackAction = TRACK_UPDATE // update track
-				}
-			case err == sql.ErrNoRows:
-				trackAction = TRACK_ADD // add track to db
-			case err != nil:
-				goto STATUS // something went wrong
+		// check if mtime has changed and decide what to do
+		switch err := rows.QueryRow(ti.Path()).Scan(&trackPath,
+			&trackMtime); {
+		case err == nil:
+			if ti.Mtime() != trackMtime {
+				trackAction = TRACK_UPDATE // update track
 			}
-
-			// prepare the record
-			utr = &updateTrackRecord{
-				path:   fi.Name,
-				mtime:  fi.Mtime,
-				action: trackAction}
-
-			// update or add the database entry
-			err = i.updatetrack(utr, timestamp, tx)
-
-		STATUS:
-			status <- &UpdateStatus{path: fi.Name, action: trackAction, err: err}
+		case err == sql.ErrNoRows:
+			trackAction = TRACK_ADD // add track to db
+		case err != nil:
+			goto STATUS // something went wrong
 		}
+
+		// prepare the record
+		utr = &updateTrackRecord{
+			track:  ti,
+			action: trackAction}
+
+		// update or add the database entry
+		err = i.updatetrack(utr, i.timestamp, tx)
+
+	STATUS:
+		status <- &UpdateStatus{path: ti.Path(), action: trackAction, err: err}
 	}
 
 	// commit transaction
 	if err := tx.Commit(); err != nil {
-		result <- &UpdateResult{deleted: deletedTracks, err: err}
+		result <- &UpdateResult{err: err}
 		return
 	}
 
-	// remove tracks that are not anymore in the filesystem
-	deletedTracks, err = i.deleteDanglingEntries(timestamp)
-	result <- &UpdateResult{deleted: deletedTracks, err: err}
+	result <- &UpdateResult{err: err}
 }
 
 // Returns a gotaglib.TaggedFile with all information about the track with
 // filename 'filename'.
-func (i *Index) GetTrackByFile(filename string) (t *gotaglib.TaggedFile,
+func (i *Index) GetTrackByFile(filename string) (t *TrackTags,
 	err error) {
 
 	stmt, err := i.db.Prepare(
@@ -362,7 +348,7 @@ func (i *Index) GetTrackByFile(filename string) (t *gotaglib.TaggedFile,
 		return nil, err
 	}
 
-	return &gotaglib.TaggedFile{
+	return &TrackTags{
 		Filename: path,
 		Title:    title,
 		Artist:   artist,
