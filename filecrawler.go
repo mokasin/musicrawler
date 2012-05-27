@@ -19,17 +19,22 @@ package main
 import "os"
 import "path/filepath"
 
+type FileInfo struct {
+	Name  string
+	Mtime int64
+}
+
 type walker struct {
 	Dir       string
 	Filetypes []string
-	receiver  chan<- string
+	receiver  chan<- *FileInfo
 }
 
 // Sends path to w.receiver channel, if fileextension matches one of Filetypes.
 func (w *walker) walkfunc(path string, info os.FileInfo, err error) error {
 	for _, v := range w.Filetypes {
 		if filepath.Ext(path) == "."+v {
-			w.receiver <- path
+			w.receiver <- &FileInfo{path, info.ModTime().Unix()}
 			break
 		}
 	}
@@ -39,7 +44,7 @@ func (w *walker) walkfunc(path string, info os.FileInfo, err error) error {
 
 // Sends all filepathes of type filetypes to the receiver channel. Is meant to
 // be a goroutine.
-func CrawlFiles(dir string, filetypes []string, receiver chan<- string) {
+func CrawlFiles(dir string, filetypes []string, receiver chan<- *FileInfo) {
 	w := &walker{Dir: dir, Filetypes: filetypes, receiver: receiver}
 
 	// have to use closure because argument as to be a function not a method

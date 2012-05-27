@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"gotaglib"
-	"os"
 	"time"
 )
 
@@ -283,26 +282,21 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 
 	// traverse filelist and update or add database entries
 	for e := list.Front(); e != nil; e = e.Next() {
-		path, ok := e.Value.(string)
+		fi, ok := e.Value.(*FileInfo)
 		if ok {
 			var utr *updateTrackRecord
 			var err error
 
 			//FIXME is it safe to depend on mtime?
-			// get current information about file (mtime)
-			fi, err := os.Stat(path)
-			if err != nil {
-				goto STATUS
-			}
 
 			// default action
 			trackAction = TRACK_NOUPDATE
 
 			// check if mtime has changed and decide what to do
-			switch err := rows.QueryRow(path).Scan(&trackPath,
+			switch err := rows.QueryRow(fi.Name).Scan(&trackPath,
 				&trackFilemtime); {
 			case err == nil:
-				if fi.ModTime().Unix() != trackFilemtime {
+				if fi.Mtime != trackFilemtime {
 					trackAction = TRACK_UPDATE // update track
 				}
 			case err == sql.ErrNoRows:
@@ -313,15 +307,15 @@ func (i *Index) Update(list *list.List, status chan<- *UpdateStatus,
 
 			// prepare the record
 			utr = &updateTrackRecord{
-				path:   path,
-				mtime:  fi.ModTime().Unix(),
+				path:   fi.Name,
+				mtime:  fi.Mtime,
 				action: trackAction}
 
 			// update or add the database entry
 			err = i.updatetrack(utr, timestamp, tx)
 
 		STATUS:
-			status <- &UpdateStatus{path: path, action: trackAction, err: err}
+			status <- &UpdateStatus{path: fi.Name, action: trackAction, err: err}
 		}
 	}
 

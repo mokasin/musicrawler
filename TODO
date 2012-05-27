@@ -8,8 +8,6 @@ Todo
 index.go
 --------
 * method(s) to query the database
-* statistics, verbosity
-* don't add empty artist or album
 * timing (how long did this or that action take)
 * don't read mtime, it's the task of the filecrawler!
 

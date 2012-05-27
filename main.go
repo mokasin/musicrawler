@@ -26,14 +26,14 @@ import (
 const databasefn = "./index.db"
 
 func getfilelist(directory string) (l *list.List) {
-	recv := make(chan string)
+	recv := make(chan *FileInfo)
 
 	go CrawlFiles(directory, []string{"mp3", "ogg"}, recv)
 
 	l = list.New()
 
-	for path := range recv {
-		l.PushBack(path)
+	for fi := range recv {
+		l.PushBack(fi)
 	}
 
 	return l
