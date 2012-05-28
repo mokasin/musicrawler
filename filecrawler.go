@@ -42,16 +42,16 @@ func (fi *FileInfo) Tags() (*TrackTags, error) {
 	}
 
 	return &TrackTags{
-		Filename: tag.Filename,
-		Title:    tag.Title,
-		Artist:   tag.Artist,
-		Album:    tag.Album,
-		Comment:  tag.Comment,
-		Genre:    tag.Genre,
-		Year:     tag.Year,
-		Track:    tag.Track,
-		Bitrate:  tag.Bitrate,
-		Length:   tag.Length,
+		Path:    tag.Filename,
+		Title:   tag.Title,
+		Artist:  tag.Artist,
+		Album:   tag.Album,
+		Comment: tag.Comment,
+		Genre:   tag.Genre,
+		Year:    tag.Year,
+		Track:   tag.Track,
+		Bitrate: tag.Bitrate,
+		Length:  tag.Length,
 	}, nil
 }
 

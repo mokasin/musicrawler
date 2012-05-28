@@ -19,16 +19,16 @@ package main
 // TODO Documenation
 
 type TrackTags struct {
-	Filename string
-	Title    string
-	Artist   string
-	Album    string
-	Comment  string
-	Genre    string
-	Year     uint
-	Track    uint
-	Bitrate  uint
-	Length   uint
+	Path    string
+	Title   string
+	Artist  string
+	Album   string
+	Comment string
+	Genre   string
+	Year    uint
+	Track   uint
+	Bitrate uint
+	Length  uint
 }
 
 type TrackInfo interface {

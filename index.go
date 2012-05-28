@@ -327,11 +327,11 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 
 // Returns a gotaglib.TaggedFile with all information about the track with
 // filename 'filename'.
-func (i *Index) GetTrackByFile(filename string) (t *TrackTags,
+func (i *Index) GetTrackByPath(path string) (t *TrackTags,
 	err error) {
 
 	stmt, err := i.db.Prepare(
-		`SELECT tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name
+		`SELECT tr.title, tr.year, tr.tracknumber, ar.name, al.name
 			FROM Track tr
 				JOIN Artist ar ON tr.trackartist = ar.ID
 				JOIN Album  al ON tr.trackalbum  = al.ID
@@ -341,21 +341,21 @@ func (i *Index) GetTrackByFile(filename string) (t *TrackTags,
 	}
 	defer stmt.Close()
 
-	var path, title, artist, album string
+	var title, artist, album string
 	var year, track uint
-	if err := stmt.QueryRow(filename).Scan(
-		&path, &title, &year, &track, &artist, &album); err != nil {
+	if err := stmt.QueryRow(path).Scan(
+		&title, &year, &track, &artist, &album); err != nil {
 		return nil, err
 	}
 
 	return &TrackTags{
-		Filename: path,
-		Title:    title,
-		Artist:   artist,
-		Album:    album,
-		Comment:  "", // not yet in database
-		Genre:    "",
-		Year:     year,
-		Track:    track,
+		Path:    path,
+		Title:   title,
+		Artist:  artist,
+		Album:   album,
+		Comment: "", // not yet in database
+		Genre:   "",
+		Year:    year,
+		Track:   track,
 	}, nil
 }
