@@ -31,15 +31,16 @@ func updateFiles(dir string, index *Index) {
 	var status *UpdateStatus
 	var result *UpdateResult
 
-	trackInfoChannel := make(chan TrackInfo)
-	statusChannel := make(chan *UpdateStatus)
+	trackInfoChannel := make(chan TrackInfo, 20)
+	statusChannel := make(chan *UpdateStatus, 10)
 	resultChannel := make(chan *UpdateResult)
+	doneChannel := make(chan bool)
 
 	filecrawler = NewFileCrawler(dir, supportedFileTypes)
 
 	// Plug output of CrawlFiles into index.Update over fileInfoChannel
 	go index.Update(trackInfoChannel, statusChannel, resultChannel)
-	go filecrawler.Crawl(trackInfoChannel)
+	go filecrawler.Crawl(trackInfoChannel, doneChannel)
 
 TRACKUPDATE:
 	for {
@@ -55,6 +56,8 @@ TRACKUPDATE:
 					added++
 				}
 			}
+		case <-doneChannel:
+			close(trackInfoChannel)
 		case result = <-resultChannel:
 			break TRACKUPDATE
 		}

@@ -322,7 +322,7 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 		return
 	}
 
-	result <- &UpdateResult{err: err}
+	result <- &UpdateResult{err: nil}
 }
 
 // Returns a gotaglib.TaggedFile with all information about the track with

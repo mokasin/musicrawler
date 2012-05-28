@@ -79,12 +79,12 @@ func (w *FileWalker) walkfunc(receiver chan<- TrackInfo, path string,
 
 // Sends all filepathes of type filetypes to the receiver channel. Is meant to
 // be a goroutine.
-func (w *FileWalker) Crawl(tracks chan<- TrackInfo) {
+func (w *FileWalker) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
 	// have to use closure because argument as to be a function not a method
 	filepath.Walk(w.Dir,
 		func(p string, i os.FileInfo, e error) error {
 			return w.walkfunc(tracks, p, i, e)
 		})
 
-	close(tracks)
+	done <- true
 }

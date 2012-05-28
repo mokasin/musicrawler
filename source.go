@@ -38,5 +38,5 @@ type TrackInfo interface {
 }
 
 type TrackSource interface {
-	Crawl(tracks chan<- TrackInfo)
+	Crawl(tracks chan<- TrackInfo, done chan<- bool)
 }
