@@ -17,7 +17,7 @@
 package main
 
 import (
-	"gotaglib"
+	"github.com/mokasin/gotaglib"
 	"os"
 	"path/filepath"
 )
