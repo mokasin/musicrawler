@@ -29,6 +29,38 @@ type Index struct {
 	timestamp int64
 }
 
+// Creates a new Index struct and connects it to the database at filename.
+// Needs to be closed with method Close()!
+func NewIndex(filename string) (*Index, error) {
+	_, err := os.Stat(filename)
+	newdatabase := os.IsNotExist(err)
+
+	db, err := sql.Open("sqlite3", filename)
+	if err != nil {
+		return nil, err
+	}
+
+	i := &Index{Filename: filename, db: db}
+	if newdatabase {
+		if err := i.createDatabase(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Make it nosync and put the journal into memory
+	if _, err := i.db.Exec(
+		"PRAGMA synchronous = OFF; PRAGMA journal_mode = OFF"); err != nil {
+		return nil, err
+	}
+
+	return i, nil
+}
+
+// Closes the opened database.
+func (i *Index) Close() {
+	i.db.Close()
+}
+
 // SQL queries to create the database schema
 const sql_create_artist = `
 	CREATE TABLE Artist
@@ -55,30 +87,6 @@ const sql_create_track = `
 		dbmtime			INTEGER
 	);`
 
-// Creates a new Index struct and connects it to the database at filename.
-// Needs to be closed with method Close()!
-func NewIndex(filename string) (*Index, error) {
-	_, err := os.Stat(filename)
-	newdatabase := os.IsNotExist(err)
-
-	db, err := sql.Open("sqlite3", filename)
-	if err != nil {
-		return nil, err
-	}
-
-	i := &Index{Filename: filename, db: db}
-	if newdatabase {
-		return i, i.createDatabase()
-	}
-
-	return i, nil
-}
-
-// Closes the opened database.
-func (i *Index) Close() {
-	i.db.Close()
-}
-
 // Creates the basic database structure
 func (i *Index) createDatabase() error {
 	sqls := []string{
@@ -102,113 +110,99 @@ func (i *Index) createDatabase() error {
 	return tx.Commit()
 }
 
+const SQL_INSERT_ARTIST = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
+const SQL_INSERT_ALBUM = "INSERT OR IGNORE INTO Album(name)  VALUES (?);"
+
+const SQL_ADD_TRACK = `INSERT INTO Track(
+	path,
+	title,
+	trackartist,
+	trackalbum,
+	tracknumber,
+	year,
+	filemtime,
+	dbmtime)
+    VALUES( ?, ?, 
+		   (SELECT ID FROM Artist WHERE name = ?), 
+		   (SELECT ID FROM Album  WHERE name = ?), 
+		    ?, ?, ?, ?);`
+
+const SQL_UPDATE_TIMESTAMP = "UPDATE Track SET dbmtime = ? WHERE path = ?;"
+
+func (i *Index) updateTrackTimestamp(track TrackInfo, tx *sql.Tx) error {
+	// update the timestamp if the track is in the database
+	_, err := tx.Exec(SQL_UPDATE_TIMESTAMP, i.timestamp, track.Path())
+	return err
+}
+
+func (i *Index) addTrack(track TrackInfo, tx *sql.Tx) error {
+	tag, err := track.Tags()
+	if err != nil {
+		return err
+	}
+
+	// first make sure artist and album exist in database	
+	if _, err := tx.Exec(SQL_INSERT_ARTIST, tag.Artist); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(SQL_INSERT_ALBUM, tag.Album); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(SQL_ADD_TRACK,
+		track.Path(),
+		tag.Title,
+		tag.Artist,
+		tag.Album,
+		tag.Track,
+		tag.Year,
+		track.Mtime(),
+		i.timestamp,
+	)
+	return err
+}
+
+const SQL_UPDATE_TRACK = `UPDATE Track SET
+	title       = ?,
+	trackartist = (SELECT ID FROM Artist WHERE name = ?),
+	trackalbum  = (SELECT ID FROM Album  WHERE name = ?),
+	tracknumber = ?,
+	year        = ?,
+	filemtime   = ?
+	WHERE path  = ?;`
+
+func (i *Index) updateTrack(track TrackInfo, tx *sql.Tx) error {
+	tag, err := track.Tags()
+	if err != nil {
+		return err
+	}
+
+	// first make sure artist and album exist in database	
+	if _, err := tx.Exec(SQL_INSERT_ARTIST, tag.Artist); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(SQL_INSERT_ALBUM, tag.Album); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(SQL_UPDATE_TRACK,
+		tag.Title,
+		tag.Artist,
+		tag.Album,
+		tag.Track,
+		tag.Year,
+		track.Mtime(),
+		track.Path(),
+	)
+	return err
+}
+
 // define updateTrackRecord actions
 const (
 	TRACK_NOUPDATE = iota
 	TRACK_UPDATE
 	TRACK_ADD
 )
-
-// Information needed for updating an entry in the database.
-// action is.
-type updateTrackRecord struct {
-	track  TrackInfo
-	action uint8 // one of consts above
-}
-
-// Adds or updates a track to or in the database. It requires a transaction, on
-// which it can act.
-// TODO doc
-func (i *Index) updatetrack(utr *updateTrackRecord, dbmtime int64,
-	tx *sql.Tx) error {
-
-	// SQL queries for all possible actions in a map
-	sqls := map[string]string{
-		"artist insert":   "INSERT OR IGNORE INTO Artist(name) VALUES (?);",
-		"album insert":    "INSERT OR IGNORE INTO Album(name)  VALUES (?);",
-		"track timestamp": "UPDATE Track SET dbmtime = ? WHERE path = ?;",
-		"track update": `UPDATE Track SET
-			title       = ?,
-			trackartist = (SELECT ID FROM Artist WHERE name = ?),
-			trackalbum  = (SELECT ID FROM Album  WHERE name = ?),
-			tracknumber = ?,
-			year        = ?,
-			filemtime   = ?
-			WHERE path = ?;`,
-		"track insert": `INSERT INTO Track(
-			path,
-			title,
-			trackartist,
-			trackalbum,
-			tracknumber,
-			year,
-			filemtime,
-			dbmtime)
-		 VALUES(
-			 ?, ?, 
-			 (SELECT ID FROM Artist WHERE name = ?), 
-			 (SELECT ID FROM Album  WHERE name = ?), 
-			 ?, ?, ?, ?);`,
-	}
-
-	// update the timestamp if the track is in the database
-	if utr.action == TRACK_NOUPDATE || utr.action == TRACK_UPDATE {
-		if _, err := tx.Exec(sqls["track timestamp"], dbmtime,
-			utr.track.Path()); err != nil {
-			return err
-		}
-
-		// nothing more to do, everything is up to date
-		if utr.action == TRACK_NOUPDATE {
-			return nil
-		}
-	}
-
-	tag, err := utr.track.Tags()
-	if err != nil {
-		return err
-	}
-
-	// first make sure artist and album exist in database	
-	if _, err := tx.Exec(sqls["artist insert"], tag.Artist); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(sqls["album insert"], tag.Album); err != nil {
-		return err
-	}
-
-	switch utr.action {
-	case TRACK_UPDATE: // the track is in the database and needs to be updated
-		_, err := tx.Exec(sqls["track update"],
-			tag.Title,
-			tag.Artist,
-			tag.Album,
-			tag.Track,
-			tag.Year,
-			utr.track.Mtime(),
-			utr.track.Path(),
-		)
-		if err != nil {
-			return err
-		}
-	case TRACK_ADD: // the track is not in the database and needs to be added
-		_, err := tx.Exec(sqls["track insert"],
-			utr.track.Path(),
-			tag.Title,
-			tag.Artist,
-			tag.Album,
-			tag.Track,
-			tag.Year,
-			utr.track.Mtime(),
-			dbmtime,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 // Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
 // entries in Artist and Album table that are not referenced evermore in Track.
@@ -284,36 +278,38 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 	var trackPath string
 	var trackMtime int64
 
-	var utr *updateTrackRecord = &updateTrackRecord{}
-
-	// traverse filelist and update or add database entries
+	// traverse all catched pathes and update or add database entries
 	for ti := range tracks {
-		// default action
+		var statusErr error
+
 		trackAction = TRACK_NOUPDATE
 
 		// check if mtime has changed and decide what to do
 		switch err := rows.QueryRow(ti.Path()).Scan(&trackPath,
 			&trackMtime); {
-		case err == nil:
-			if ti.Mtime() != trackMtime {
-				trackAction = TRACK_UPDATE // update track
+		case err == nil: // track is in database
+			// update timestamp because file still exists
+			statusErr = i.updateTrackTimestamp(ti, tx)
+			if statusErr == nil {
+				if ti.Mtime() != trackMtime {
+					statusErr = i.updateTrack(ti, tx) // update track
+					trackAction = TRACK_UPDATE
+				}
 			}
-		case err == sql.ErrNoRows:
-			trackAction = TRACK_ADD // add track to db
-		case err != nil:
-			goto STATUS // something went wrong
+		case err == sql.ErrNoRows: // track is not in database
+			// automatically update of timestamp when adding (performance)
+			statusErr = i.addTrack(ti, tx) // add track
+			trackAction = TRACK_ADD
+		default:
+			// if something is wrong update timestamp, so track is not
+			// deleted the next time
+			statusErr = i.updateTrackTimestamp(ti, tx)
 		}
 
-		// prepare the record
-		utr = &updateTrackRecord{
-			track:  ti,
-			action: trackAction}
-
-		// update or add the database entry
-		err = i.updatetrack(utr, i.timestamp, tx)
-
-	STATUS:
-		status <- &UpdateStatus{path: ti.Path(), action: trackAction, err: err}
+		status <- &UpdateStatus{
+			path:   ti.Path(),
+			action: trackAction,
+			err:    statusErr}
 	}
 
 	// commit transaction
@@ -327,9 +323,7 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 
 // Returns a gotaglib.TaggedFile with all information about the track with
 // filename 'filename'.
-func (i *Index) GetTrackByPath(path string) (t *TrackTags,
-	err error) {
-
+func (i *Index) GetTrackByPath(path string) (t *TrackTags, err error) {
 	stmt, err := i.db.Prepare(
 		`SELECT tr.title, tr.year, tr.tracknumber, ar.name, al.name
 			FROM Track tr
