@@ -8,22 +8,13 @@ import (
 
 const dbName = "test.db"
 
-func createIndex(fname string) (*Index, error) {
-	i, err := NewIndex(fname)
-	if err != nil {
-		return nil, err
-	}
-
-	return i, i.CreateDatabase()
-}
-
 func TestCreateDatabase(t *testing.T) {
 	if _, err := os.Stat(dbName); err == nil {
 		t.Errorf("File %v does already exist. Please delete it.", dbName)
 		return
 	}
 
-	i, err := createIndex(dbName)
+	i, err := NewIndex(dbName)
 	defer os.Remove(dbName)
 	if err != nil {
 		t.Errorf("Database error: %v", err)
@@ -48,12 +39,13 @@ func TestCreateDatabase(t *testing.T) {
 func TestUpdatetrack(t *testing.T) {
 	const mp3File = "test/test.mp3"
 
-	i, _ := createIndex(dbName)
+	i, _ := NewIndex(dbName)
 	defer os.Remove(dbName)
 
+	ti := &FileInfo{filename: mp3File, mtime: 123456}
+
 	utr := &updateTrackRecord{
-		path:   mp3File,
-		mtime:  123456,
+		track:  ti,
 		action: TRACK_ADD,
 	}
 
@@ -75,7 +67,7 @@ func TestUpdatetrack(t *testing.T) {
 		t.Errorf("No track in database: %v", err)
 	}
 
-	tag, err := i.GetTrackByFile(mp3File)
+	tag, err := i.GetTrackByPath(mp3File)
 
 	var isexp = []struct {
 		is  string
