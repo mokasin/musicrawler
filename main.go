@@ -19,14 +19,31 @@ package main
 import (
 	"flag"
 	"fmt"
+	//"net/http"
+	//_ "net/http/pprof"
+	//"time"
+	"log"
+	"os"
+	"runtime/pprof"
 )
 
 const databasefn = "index.db"
 
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
+///////
+//type testCrawler string
+//
+//func (t *testCrawler) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
+//	for i := int64(0); i < 30000; i++ {
+//		tracks <- &FileInfo{filename: "/home/mokasin/Music/test.mp3", mtime: i}
+//	}
+//	done <- true
+//}
+//
+///////
+
 func updateFiles(dir string, index *Index) {
-	var filecrawler TrackSource
 	var added, updated int
 	var status *UpdateStatus
 	var result *UpdateResult
@@ -36,19 +53,26 @@ func updateFiles(dir string, index *Index) {
 	resultChannel := make(chan *UpdateResult)
 	doneChannel := make(chan bool)
 
-	filecrawler = NewFileCrawler(dir, supportedFileTypes)
+	filecrawler := NewFileCrawler(dir, supportedFileTypes)
 
 	// Plug output of CrawlFiles into index.Update over fileInfoChannel
 	go index.Update(trackInfoChannel, statusChannel, resultChannel)
 	go filecrawler.Crawl(trackInfoChannel, doneChannel)
 
+	//tt := new(testCrawler)
+	//go tt.Crawl(trackInfoChannel, doneChannel)
+
+	counter := 0
 TRACKUPDATE:
 	for {
 		select {
 		case status = <-statusChannel:
+			counter++
 			if status.err != nil {
-				fmt.Printf("INDEX ERROR (%s): %v\n", status.path, status.err)
+				fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
+					status.action, status.path, status.err)
 			} else {
+				fmt.Printf("%d: %d, %s\n", counter, status.action, status.path)
 				switch status.action {
 				case TRACK_UPDATE:
 					updated++
@@ -72,8 +96,25 @@ TRACKUPDATE:
 }
 
 func main() {
+	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 	dir := "."
 	flag.Parse()
+
+	//PROFILER START
+
+	//go http.ListenAndServe(":12345", nil)
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+	//PROFILER END
+
 	if flag.NArg() != 0 {
 		dir = flag.Arg(0)
 	}
@@ -90,4 +131,10 @@ func main() {
 
 	fmt.Println("-> Update files.")
 	updateFiles(dir, index)
+
+	// endless loop, so pprof server isn't killed
+	//for {
+	//	time.Sleep(5 * time.Second)
+	//}
+
 }
