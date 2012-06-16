@@ -16,6 +16,7 @@ func TestCreateDatabase(t *testing.T) {
 
 	i, err := NewIndex(dbName)
 	defer os.Remove(dbName)
+
 	if err != nil {
 		t.Errorf("Database error: %v", err)
 	}
@@ -44,17 +45,12 @@ func TestUpdatetrack(t *testing.T) {
 
 	ti := &FileInfo{filename: mp3File, mtime: 123456}
 
-	utr := &updateTrackRecord{
-		track:  ti,
-		action: TRACK_ADD,
-	}
-
 	tx, err := i.db.Begin()
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	if err := i.updatetrack(utr, 1234567, tx); err != nil {
+	if err := i.addTrack(ti, tx); err != nil {
 		t.Errorf("Adding track failed: %v", err)
 	}
 
