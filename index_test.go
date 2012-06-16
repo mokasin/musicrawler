@@ -25,14 +25,15 @@ func TestCreateDatabase(t *testing.T) {
 		t.Errorf("Filename not set correctly. %v vs. %v", i.Filename, dbName)
 	}
 
-	var path string
+	var path, name string
+	var id int
 	if err := i.db.QueryRow("SELECT path FROM Track").Scan(&path); err != sql.ErrNoRows {
 		t.Errorf("%v", err)
 	}
-	if err := i.db.QueryRow("SELECT ID, name FROM Artist").Scan(&path); err != sql.ErrNoRows {
+	if err := i.db.QueryRow("SELECT ID, name FROM Artist").Scan(&id, &name); err != sql.ErrNoRows {
 		t.Errorf("%v", err)
 	}
-	if err := i.db.QueryRow("SELECT ID, name FROM Album").Scan(&path); err != sql.ErrNoRows {
+	if err := i.db.QueryRow("SELECT ID, name FROM Album").Scan(&id, &name); err != sql.ErrNoRows {
 		t.Errorf("%v", err)
 	}
 }
