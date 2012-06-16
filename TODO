@@ -8,12 +8,6 @@ Todo
 index.go
 --------
 * method(s) to query the database
-* timing (how long did this or that action take)
-* figure out, how to stop looking for messages on channel without closing it 
-
-filecrawler.go
---------------
-* don't close the channel
 
 Longterm
 ========
