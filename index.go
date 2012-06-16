@@ -41,16 +41,20 @@ func NewIndex(filename string) (*Index, error) {
 	}
 
 	i := &Index{Filename: filename, db: db}
+
+	// Make it nosync and disable the journal
+	if _, err := i.db.Exec("PRAGMA synchronous=OFF"); err != nil {
+		return nil, err
+	}
+	if _, err := i.db.Exec("PRAGMA journal_mode=OFF"); err != nil {
+		return nil, err
+	}
+
+	// If databsae file does not exist
 	if newdatabase {
 		if err := i.createDatabase(); err != nil {
 			return nil, err
 		}
-	}
-
-	// Make it nosync and put the journal into memory
-	if _, err := i.db.Exec(
-		"PRAGMA synchronous = OFF; PRAGMA journal_mode = OFF"); err != nil {
-		return nil, err
 	}
 
 	return i, nil
@@ -266,7 +270,7 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 	}
 
 	// get tracks that need to be updated
-	rows, err := i.db.Prepare(
+	rows, err := tx.Prepare(
 		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
 		result <- &UpdateResult{err: err}
