@@ -19,15 +19,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	//"net/http"
-	//_ "net/http/pprof"
-	//"time"
 	"log"
 	"os"
-	"runtime/pprof"
+	//"runtime/pprof"
+	"time"
 )
-
-const databasefn = "index.db"
 
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
@@ -48,8 +44,8 @@ func updateFiles(dir string, index *Index) {
 	var status *UpdateStatus
 	var result *UpdateResult
 
-	trackInfoChannel := make(chan TrackInfo, 20)
-	statusChannel := make(chan *UpdateStatus, 10)
+	trackInfoChannel := make(chan TrackInfo, 100)
+	statusChannel := make(chan *UpdateStatus, 1000)
 	resultChannel := make(chan *UpdateResult)
 	doneChannel := make(chan bool)
 
@@ -62,6 +58,8 @@ func updateFiles(dir string, index *Index) {
 	//tt := new(testCrawler)
 	//go tt.Crawl(trackInfoChannel, doneChannel)
 
+	timeStart := time.Now()
+
 	counter := 0
 TRACKUPDATE:
 	for {
@@ -72,7 +70,9 @@ TRACKUPDATE:
 				fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
 					status.action, status.path, status.err)
 			} else {
-				fmt.Printf("%d: %d, %s\n", counter, status.action, status.path)
+				if *verbosity {
+					fmt.Printf("%d: %d, %s\n", counter, status.action, status.path)
+				}
 				switch status.action {
 				case TRACK_UPDATE:
 					updated++
@@ -91,38 +91,43 @@ TRACKUPDATE:
 		fmt.Println("DATABASE ERROR:", result.err)
 	}
 
+	deltaTime := time.Since(timeStart).Seconds()
+
 	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
+	fmt.Printf("Total: %.2fmin. %.2f sec per track\n", deltaTime/60,
+		deltaTime/float64(added+updated))
 
 }
 
-func main() {
-	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var verbosity = flag.Bool("v", false, "be verbose")
 
-	dir := "."
+func main() {
+	var dir string = "."
+	var dbFileName string
+	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	flag.StringVar(&dbFileName, "database", "index.db", "path to database")
+
 	flag.Parse()
 
-	//PROFILER START
-
-	//go http.ListenAndServe(":12345", nil)
-
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-	//PROFILER END
+	////PROFILER START
+	//if *cpuprofile != "" {
+	//	f, err := os.Create(*cpuprofile)
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
+	//	pprof.StartCPUProfile(f)
+	//	defer pprof.StopCPUProfile()
+	//}
+	////PROFILER END
 
 	if flag.NArg() != 0 {
 		dir = flag.Arg(0)
 	}
 
 	// open or create database
-	fmt.Println("-> Open database:", databasefn)
+	fmt.Println("-> Open database:", dbFileName)
 
-	index, err := NewIndex(databasefn)
+	index, err := NewIndex(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
@@ -131,10 +136,4 @@ func main() {
 
 	fmt.Println("-> Update files.")
 	updateFiles(dir, index)
-
-	// endless loop, so pprof server isn't killed
-	//for {
-	//	time.Sleep(5 * time.Second)
-	//}
-
 }
