@@ -19,25 +19,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
-	"os"
 	//"runtime/pprof"
 	"time"
 )
 
 var supportedFileTypes []string = []string{"mp3", "ogg"}
-
-///////
-//type testCrawler string
-//
-//func (t *testCrawler) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
-//	for i := int64(0); i < 30000; i++ {
-//		tracks <- &FileInfo{filename: "/home/mokasin/Music/test.mp3", mtime: i}
-//	}
-//	done <- true
-//}
-//
-///////
 
 func updateFiles(dir string, index *Index) {
 	var added, updated int
@@ -54,9 +40,6 @@ func updateFiles(dir string, index *Index) {
 	// Plug output of CrawlFiles into index.Update over fileInfoChannel
 	go index.Update(trackInfoChannel, statusChannel, resultChannel)
 	go filecrawler.Crawl(trackInfoChannel, doneChannel)
-
-	//tt := new(testCrawler)
-	//go tt.Crawl(trackInfoChannel, doneChannel)
 
 	timeStart := time.Now()
 
@@ -104,7 +87,7 @@ var verbosity = flag.Bool("v", false, "be verbose")
 func main() {
 	var dir string = "."
 	var dbFileName string
-	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	//var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&dbFileName, "database", "index.db", "path to database")
 
 	flag.Parse()
