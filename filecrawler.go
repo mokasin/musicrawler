@@ -27,14 +27,17 @@ type FileInfo struct {
 	mtime    int64
 }
 
+// Getter of FileInfo.filename
 func (fi *FileInfo) Path() string {
 	return fi.filename
 }
 
+// Getter of FileInfo.mtime
 func (fi *FileInfo) Mtime() int64 {
 	return fi.mtime
 }
 
+// Reads tags (id3, vorbis,…) from file
 func (fi *FileInfo) Tags() (*TrackTags, error) {
 	tag, err := gotaglib.NewTaggedFile(fi.filename)
 	if err != nil {
@@ -55,17 +58,18 @@ func (fi *FileInfo) Tags() (*TrackTags, error) {
 	}, nil
 }
 
-type FileWalker struct {
+type FileCrawler struct {
 	Dir       string
 	Filetypes []string
 }
 
-func NewFileCrawler(dir string, filetypes []string) *FileWalker {
-	return &FileWalker{Dir: dir, Filetypes: filetypes}
+// Constructor of FileCrawler
+func NewFileCrawler(dir string, filetypes []string) *FileCrawler {
+	return &FileCrawler{Dir: dir, Filetypes: filetypes}
 }
 
-// Sends TrackInfo if filetype matches one of w.Filetypes
-func (w *FileWalker) walkfunc(receiver chan<- TrackInfo, path string,
+// Sends TrackInfo to receiver if filetype matches one of w.Filetypes.
+func (w *FileCrawler) walkfunc(receiver chan<- TrackInfo, path string,
 	info os.FileInfo, err error) error {
 	for _, v := range w.Filetypes {
 		if filepath.Ext(path) == "."+v {
@@ -79,7 +83,7 @@ func (w *FileWalker) walkfunc(receiver chan<- TrackInfo, path string,
 
 // Sends all filepathes of type filetypes to the receiver channel. Is meant to
 // be a goroutine.
-func (w *FileWalker) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
+func (w *FileCrawler) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
 	// have to use closure because argument as to be a function not a method
 	filepath.Walk(w.Dir,
 		func(p string, i os.FileInfo, e error) error {
