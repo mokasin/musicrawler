@@ -27,59 +27,62 @@ var supportedFileTypes []string = []string{"mp3", "ogg"}
 
 func updateFiles(dir string, index *Index) {
 	var added, updated int
-	var status *UpdateStatus
-	var result *UpdateResult
 
-	trackInfoChannel := make(chan TrackInfo, 100)
-	statusChannel := make(chan *UpdateStatus, 1000)
+	trackInfoChannel := make(chan TrackInfo)
+	statusChannel := make(chan *UpdateStatus)
 	resultChannel := make(chan *UpdateResult)
 	doneChannel := make(chan bool)
 
-	filecrawler := NewFileCrawler(dir, supportedFileTypes)
-
-	// Plug output of CrawlFiles into index.Update over fileInfoChannel
-	go index.Update(trackInfoChannel, statusChannel, resultChannel)
-	go filecrawler.Crawl(trackInfoChannel, doneChannel)
-
 	timeStart := time.Now()
 
-	counter := 0
-TRACKUPDATE:
-	for {
-		select {
-		case status = <-statusChannel:
-			counter++
-			if status.err != nil {
-				fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
-					status.action, status.path, status.err)
-			} else {
-				if *verbosity {
-					fmt.Printf("%d: %d, %s\n", counter, status.action, status.path)
-				}
-				switch status.action {
-				case TRACK_UPDATE:
-					updated++
-				case TRACK_ADD:
-					added++
-				}
-			}
-		case <-doneChannel:
-			close(trackInfoChannel)
-		case result = <-resultChannel:
-			break TRACKUPDATE
-		}
-	}
+	// Output of crawler(s) connects to the input of index.Update() over
+	// trackInfoChannel channel
 
-	if result.err != nil {
-		fmt.Println("DATABASE ERROR:", result.err)
+	go func() {
+		// signal is emitted, when index.Update() has cleaned up everything
+		resultChannel <- index.Update(trackInfoChannel, statusChannel)
+	}()
+
+	//filecrawler := NewFileCrawler(dir, supportedFileTypes)
+	//go filecrawler.Crawl(trackInfoChannel, doneChannel)
+
+	tt := new(testCrawler)
+	go tt.Crawl(trackInfoChannel, doneChannel)
+
+	go func() {
+		<-doneChannel
+		close(trackInfoChannel)
+	}()
+
+	counter := 0
+	for status := range statusChannel {
+		counter++
+		if status.err != nil {
+			fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
+				status.action, status.path, status.err)
+		} else {
+			if *verbosity {
+				fmt.Printf("%6d: %d, %s\n", counter, status.action, status.path)
+			}
+			switch status.action {
+			case TRACK_UPDATE:
+				updated++
+			case TRACK_ADD:
+				added++
+			}
+		}
 	}
 
 	deltaTime := time.Since(timeStart).Seconds()
 
-	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
-	fmt.Printf("Total: %.2fmin. %.2f sec per track\n", deltaTime/60,
-		deltaTime/float64(added+updated))
+	result := <-resultChannel
+	if result.err != nil {
+		fmt.Println("DATABASE ERROR:", result.err)
+	}
 
+	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
+	fmt.Printf("Total: %.2f min. %.2f ms per track.\n", deltaTime/60,
+		deltaTime/float64(added+updated)*1000)
 }
 
 var verbosity = flag.Bool("v", false, "be verbose")
@@ -115,7 +118,7 @@ func main() {
 		fmt.Println("DATABASE ERROR:", err)
 		return
 	}
-	defer index.Close()
+	//defer index.Close()
 
 	fmt.Println("-> Update files.")
 	updateFiles(dir, index)

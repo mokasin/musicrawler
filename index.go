@@ -90,28 +90,38 @@ func (i *Index) createDatabase() error {
 
 // Updates the timestamp if the track is in the database. The timestamp shows
 // the last time the entry was touched.
-func (i *Index) updateTrackTimestamp(track TrackInfo, tx *sql.Tx) error {
-	_, err := tx.Exec(SQL_UPDATE_TIMESTAMP, i.timestamp, track.Path())
+func (i *Index) updateTrackTimestamp(track TrackInfo,
+	stmtUpdateTimestamp *sql.Stmt) error {
+	_, err := stmtUpdateTimestamp.Exec(i.timestamp, track.Path())
 	return err
 }
 
+func (i *Index) insertArtistAlbum(tag *TrackTags, stmtInsertArtist *sql.Stmt,
+	stmtInsertAlbum *sql.Stmt) error {
+	if _, err := stmtInsertArtist.Exec(tag.Artist); err != nil {
+		return err
+	}
+
+	if _, err := stmtInsertAlbum.Exec(tag.Album); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Adds a track into the database using an existing transaction tx.
-func (i *Index) addTrack(track TrackInfo, tx *sql.Tx) error {
+func (i *Index) addTrack(track TrackInfo, stmtInsertArtist *sql.Stmt,
+	stmtInsertAlbum *sql.Stmt, stmtAddTrack *sql.Stmt) error {
 	tag, err := track.Tags()
 	if err != nil {
 		return err
 	}
 
-	// first make sure artist…
-	if _, err := tx.Exec(SQL_INSERT_ARTIST, tag.Artist); err != nil {
-		return err
-	}
-	// …and album exist in database	
-	if _, err := tx.Exec(SQL_INSERT_ALBUM, tag.Album); err != nil {
+	// first make sure artist and album exist in database
+	if err := i.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
 		return err
 	}
 
-	_, err = tx.Exec(SQL_ADD_TRACK,
+	_, err = stmtAddTrack.Exec(
 		track.Path(),
 		tag.Title,
 		tag.Artist,
@@ -124,32 +134,20 @@ func (i *Index) addTrack(track TrackInfo, tx *sql.Tx) error {
 	return err
 }
 
-const SQL_UPDATE_TRACK = `UPDATE Track SET
-	title       = ?,
-	trackartist = (SELECT ID FROM Artist WHERE name = ?),
-	trackalbum  = (SELECT ID FROM Album  WHERE name = ?),
-	tracknumber = ?,
-	year        = ?,
-	filemtime   = ?
-	WHERE path  = ?;`
-
 // Update a changed track in the database using an existing transaction tx.
-func (i *Index) updateTrack(track TrackInfo, tx *sql.Tx) error {
+func (i *Index) updateTrack(track TrackInfo, stmtInsertArtist *sql.Stmt,
+	stmtInsertAlbum *sql.Stmt, stmtUpdateTrack *sql.Stmt) error {
 	tag, err := track.Tags()
 	if err != nil {
 		return err
 	}
 
-	// first make sure artist…
-	if _, err := tx.Exec(SQL_INSERT_ARTIST, tag.Artist); err != nil {
-		return err
-	}
-	// …and album exist in database
-	if _, err := tx.Exec(SQL_INSERT_ALBUM, tag.Album); err != nil {
+	// first make sure artist and album exist in database
+	if err := i.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
 		return err
 	}
 
-	_, err = tx.Exec(SQL_UPDATE_TRACK,
+	_, err = stmtUpdateTrack.Exec(
 		tag.Title,
 		tag.Artist,
 		tag.Album,
@@ -220,26 +218,62 @@ type UpdateResult struct {
 // For every track a status update UpdateStatus is emitted to the status
 // channel. If the method finishes, the overall result is emitted on the result
 // channel.
-func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
-	result chan<- *UpdateResult) {
+func (i *Index) Update(tracks <-chan TrackInfo,
+	status chan<- *UpdateStatus) *UpdateResult {
 
 	// Get current time to set modify time of database entry
 	i.timestamp = time.Now().Unix()
 
 	tx, err := i.db.Begin()
 	if err != nil {
-		result <- &UpdateResult{err: err}
-		return
+		close(status)
+		return &UpdateResult{err: err}
 	}
 
 	// get tracks that need to be updated
 	rows, err := tx.Prepare(
 		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
-		result <- &UpdateResult{err: err}
-		return
+		close(status)
+		return &UpdateResult{err: err}
 	}
 	defer rows.Close()
+
+	// prepare insert statements
+	stmtInsertArtist, err := tx.Prepare(SQL_INSERT_ARTIST)
+	if err != nil {
+		close(status)
+		return &UpdateResult{err: err}
+	}
+	defer stmtInsertArtist.Close()
+
+	stmtInsertAlbum, err := tx.Prepare(SQL_INSERT_ALBUM)
+	if err != nil {
+		close(status)
+		return &UpdateResult{err: err}
+	}
+	defer stmtInsertAlbum.Close()
+
+	stmtUpdateTimestamp, err := tx.Prepare(SQL_UPDATE_TIMESTAMP)
+	if err != nil {
+		close(status)
+		return &UpdateResult{err: err}
+	}
+	defer stmtUpdateTimestamp.Close()
+
+	stmtAddTrack, err := tx.Prepare(SQL_ADD_TRACK)
+	if err != nil {
+		close(status)
+		return &UpdateResult{err: err}
+	}
+	defer stmtAddTrack.Close()
+
+	stmtUpdateTrack, err := tx.Prepare(SQL_UPDATE_TRACK)
+	if err != nil {
+		close(status)
+		return &UpdateResult{err: err}
+	}
+	defer stmtUpdateTrack.Close()
 
 	var trackAction uint8
 	var trackPath string
@@ -256,21 +290,24 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 			&trackMtime); {
 		case err == nil: // track is in database
 			// update timestamp because file still exists
-			statusErr = i.updateTrackTimestamp(ti, tx)
+			statusErr = i.updateTrackTimestamp(ti, stmtUpdateTimestamp)
 			if statusErr == nil {
+				// check if track has changed since the last time
 				if ti.Mtime() != trackMtime {
-					statusErr = i.updateTrack(ti, tx)
+					statusErr = i.updateTrack(ti, stmtInsertArtist,
+						stmtInsertAlbum, stmtUpdateTrack)
 					trackAction = TRACK_UPDATE
 				}
 			}
 		case err == sql.ErrNoRows: // track is not in database
 			// automatically update of timestamp when adding (performance)
-			statusErr = i.addTrack(ti, tx)
+			statusErr = i.addTrack(ti, stmtInsertArtist, stmtInsertAlbum,
+				stmtAddTrack)
 			trackAction = TRACK_ADD
 		default:
 			// if something is wrong update timestamp, so track is not
 			// deleted the next time
-			statusErr = i.updateTrackTimestamp(ti, tx)
+			statusErr = i.updateTrackTimestamp(ti, stmtUpdateTimestamp)
 		}
 
 		status <- &UpdateStatus{
@@ -281,11 +318,12 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 
 	// commit transaction
 	if err := tx.Commit(); err != nil {
-		result <- &UpdateResult{err: err}
-		return
+		close(status)
+		return &UpdateResult{err: err}
 	}
 
-	result <- &UpdateResult{err: nil}
+	close(status)
+	return &UpdateResult{err: nil}
 }
 
 // Returns a TrackTags struct of the track at the given path.

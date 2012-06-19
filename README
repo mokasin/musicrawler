@@ -22,7 +22,7 @@ Dependencies
 Build
 -----
 
-	$ go build musicrawler
+	$ go build
 
 License
 -------
