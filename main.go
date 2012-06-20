@@ -37,17 +37,13 @@ func updateFiles(dir string, index *Index) {
 
 	// Output of crawler(s) connects to the input of index.Update() over
 	// trackInfoChannel channel
+	go index.Update(trackInfoChannel, statusChannel, resultChannel)
 
-	go func() {
-		// signal is emitted, when index.Update() has cleaned up everything
-		resultChannel <- index.Update(trackInfoChannel, statusChannel)
-	}()
+	filecrawler := NewFileCrawler(dir, supportedFileTypes)
+	go filecrawler.Crawl(trackInfoChannel, doneChannel)
 
-	//filecrawler := NewFileCrawler(dir, supportedFileTypes)
-	//go filecrawler.Crawl(trackInfoChannel, doneChannel)
-
-	tt := new(testCrawler)
-	go tt.Crawl(trackInfoChannel, doneChannel)
+	//tt := new(testCrawler)
+	//go tt.Crawl(trackInfoChannel, doneChannel)
 
 	go func() {
 		<-doneChannel
@@ -81,7 +77,7 @@ func updateFiles(dir string, index *Index) {
 	}
 
 	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
-	fmt.Printf("Total: %.2f min. %.2f ms per track.\n", deltaTime/60,
+	fmt.Printf("Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
 		deltaTime/float64(added+updated)*1000)
 }
 

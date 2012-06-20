@@ -213,12 +213,23 @@ type UpdateResult struct {
 	err error
 }
 
+// Update is a wrapper for update method, that should be could when using in a
+// goroutine.
+//
+// It makes sure everything is cleaned up nicely before the signal gets emmitted
+// to prevent racing conditions when closing the database connection.
+func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
+	result chan<- *UpdateResult) {
+	// signal is emitted, not untils index.Update() has cleaned up everything
+	result <- i.update(tracks, status)
+}
+
 // Updates or adds tracks that are received at the tracks channel.
 //
 // For every track a status update UpdateStatus is emitted to the status
 // channel. If the method finishes, the overall result is emitted on the result
 // channel.
-func (i *Index) Update(tracks <-chan TrackInfo,
+func (i *Index) update(tracks <-chan TrackInfo,
 	status chan<- *UpdateStatus) *UpdateResult {
 
 	// Get current time to set modify time of database entry

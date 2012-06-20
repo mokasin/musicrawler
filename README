@@ -22,7 +22,10 @@ Dependencies
 Build
 -----
 
-	$ go build
+    $ go build
+
+	Without debugging symbols
+	$ go build -ldflags -s
 
 License
 -------
