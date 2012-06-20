@@ -1,4 +1,4 @@
-package main
+package index
 
 // SQL queries to create the database schema
 const SQL_CREATE_ARTIST = `

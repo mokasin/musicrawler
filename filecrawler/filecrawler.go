@@ -14,10 +14,11 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package filecrawler
 
 import (
 	"github.com/mokasin/gotaglib"
+	"musicrawler/source"
 	"os"
 	"path/filepath"
 )
@@ -38,13 +39,13 @@ func (fi *FileInfo) Mtime() int64 {
 }
 
 // Reads tags (id3, vorbis,…) from file
-func (fi *FileInfo) Tags() (*TrackTags, error) {
+func (fi *FileInfo) Tags() (*source.TrackTags, error) {
 	tag, err := gotaglib.NewTaggedFile(fi.filename)
 	if err != nil {
 		return nil, err
 	}
 
-	return &TrackTags{
+	return &source.TrackTags{
 		Path:    tag.Filename,
 		Title:   tag.Title,
 		Artist:  tag.Artist,
@@ -68,8 +69,8 @@ func NewFileCrawler(dir string, filetypes []string) *FileCrawler {
 	return &FileCrawler{Dir: dir, Filetypes: filetypes}
 }
 
-// Sends TrackInfo to receiver if filetype matches one of w.Filetypes.
-func (w *FileCrawler) walkfunc(receiver chan<- TrackInfo, path string,
+// Sends source.TrackInfo to receiver if filetype matches one of w.Filetypes.
+func (w *FileCrawler) walkfunc(receiver chan<- source.TrackInfo, path string,
 	info os.FileInfo, err error) error {
 	for _, v := range w.Filetypes {
 		if filepath.Ext(path) == "."+v {
@@ -83,7 +84,7 @@ func (w *FileCrawler) walkfunc(receiver chan<- TrackInfo, path string,
 
 // Sends all filepathes of type filetypes to the receiver channel. Is meant to
 // be a goroutine.
-func (w *FileCrawler) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
+func (w *FileCrawler) Crawl(tracks chan<- source.TrackInfo, done chan<- bool) {
 	// have to use closure because argument as to be a function not a method
 	filepath.Walk(w.Dir,
 		func(p string, i os.FileInfo, e error) error {

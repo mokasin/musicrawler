@@ -14,11 +14,12 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package index
 
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
+	"musicrawler/source"
 	"os"
 	"time"
 )
@@ -90,13 +91,13 @@ func (i *Index) createDatabase() error {
 
 // Updates the timestamp if the track is in the database. The timestamp shows
 // the last time the entry was touched.
-func (i *Index) updateTrackTimestamp(track TrackInfo,
+func (i *Index) updateTrackTimestamp(track source.TrackInfo,
 	stmtUpdateTimestamp *sql.Stmt) error {
 	_, err := stmtUpdateTimestamp.Exec(i.timestamp, track.Path())
 	return err
 }
 
-func (i *Index) insertArtistAlbum(tag *TrackTags, stmtInsertArtist *sql.Stmt,
+func (i *Index) insertArtistAlbum(tag *source.TrackTags, stmtInsertArtist *sql.Stmt,
 	stmtInsertAlbum *sql.Stmt) error {
 	if _, err := stmtInsertArtist.Exec(tag.Artist); err != nil {
 		return err
@@ -109,7 +110,7 @@ func (i *Index) insertArtistAlbum(tag *TrackTags, stmtInsertArtist *sql.Stmt,
 }
 
 // Adds a track into the database using an existing transaction tx.
-func (i *Index) addTrack(track TrackInfo, stmtInsertArtist *sql.Stmt,
+func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	stmtInsertAlbum *sql.Stmt, stmtAddTrack *sql.Stmt) error {
 	tag, err := track.Tags()
 	if err != nil {
@@ -135,7 +136,7 @@ func (i *Index) addTrack(track TrackInfo, stmtInsertArtist *sql.Stmt,
 }
 
 // Update a changed track in the database using an existing transaction tx.
-func (i *Index) updateTrack(track TrackInfo, stmtInsertArtist *sql.Stmt,
+func (i *Index) updateTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	stmtInsertAlbum *sql.Stmt, stmtUpdateTrack *sql.Stmt) error {
 	tag, err := track.Tags()
 	if err != nil {
@@ -203,14 +204,14 @@ func (i *Index) DeleteDanglingEntries(dbmtime int64) (int64, error) {
 // Holds information of how the track at path was handeled. If the transaction
 // was successfully err is nil.
 type UpdateStatus struct {
-	path   string
-	action uint8
-	err    error
+	Path   string
+	Action uint8
+	Err    error
 }
 
 // Holds information if the operation was successful.
 type UpdateResult struct {
-	err error
+	Err error
 }
 
 // Update is a wrapper for update method, that should be could when using in a
@@ -218,7 +219,7 @@ type UpdateResult struct {
 //
 // It makes sure everything is cleaned up nicely before the signal gets emmitted
 // to prevent racing conditions when closing the database connection.
-func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
+func (i *Index) Update(tracks <-chan source.TrackInfo, status chan<- *UpdateStatus,
 	result chan<- *UpdateResult) {
 	// signal is emitted, not untils index.Update() has cleaned up everything
 	result <- i.update(tracks, status)
@@ -229,7 +230,7 @@ func (i *Index) Update(tracks <-chan TrackInfo, status chan<- *UpdateStatus,
 // For every track a status update UpdateStatus is emitted to the status
 // channel. If the method finishes, the overall result is emitted on the result
 // channel.
-func (i *Index) update(tracks <-chan TrackInfo,
+func (i *Index) update(tracks <-chan source.TrackInfo,
 	status chan<- *UpdateStatus) *UpdateResult {
 
 	// Get current time to set modify time of database entry
@@ -238,7 +239,7 @@ func (i *Index) update(tracks <-chan TrackInfo,
 	tx, err := i.db.Begin()
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 
 	// get tracks that need to be updated
@@ -246,7 +247,7 @@ func (i *Index) update(tracks <-chan TrackInfo,
 		"SELECT path,filemtime FROM Track WHERE path = ?")
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 	defer rows.Close()
 
@@ -254,35 +255,35 @@ func (i *Index) update(tracks <-chan TrackInfo,
 	stmtInsertArtist, err := tx.Prepare(SQL_INSERT_ARTIST)
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 	defer stmtInsertArtist.Close()
 
 	stmtInsertAlbum, err := tx.Prepare(SQL_INSERT_ALBUM)
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 	defer stmtInsertAlbum.Close()
 
 	stmtUpdateTimestamp, err := tx.Prepare(SQL_UPDATE_TIMESTAMP)
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 	defer stmtUpdateTimestamp.Close()
 
 	stmtAddTrack, err := tx.Prepare(SQL_ADD_TRACK)
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 	defer stmtAddTrack.Close()
 
 	stmtUpdateTrack, err := tx.Prepare(SQL_UPDATE_TRACK)
 	if err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 	defer stmtUpdateTrack.Close()
 
@@ -322,23 +323,23 @@ func (i *Index) update(tracks <-chan TrackInfo,
 		}
 
 		status <- &UpdateStatus{
-			path:   ti.Path(),
-			action: trackAction,
-			err:    statusErr}
+			Path:   ti.Path(),
+			Action: trackAction,
+			Err:    statusErr}
 	}
 
 	// commit transaction
 	if err := tx.Commit(); err != nil {
 		close(status)
-		return &UpdateResult{err: err}
+		return &UpdateResult{Err: err}
 	}
 
 	close(status)
-	return &UpdateResult{err: nil}
+	return &UpdateResult{Err: nil}
 }
 
-// Returns a TrackTags struct of the track at the given path.
-func (i *Index) GetTrackByPath(path string) (t *TrackTags, err error) {
+// Returns a source.TrackTags struct of the track at the given path.
+func (i *Index) GetTrackByPath(path string) (t *source.TrackTags, err error) {
 	stmt, err := i.db.Prepare(
 		`SELECT tr.title, tr.year, tr.tracknumber, ar.name, al.name
 			FROM Track tr
@@ -357,7 +358,7 @@ func (i *Index) GetTrackByPath(path string) (t *TrackTags, err error) {
 		return nil, err
 	}
 
-	return &TrackTags{
+	return &source.TrackTags{
 		Path:    path,
 		Title:   title,
 		Artist:  artist,

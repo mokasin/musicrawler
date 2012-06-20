@@ -20,27 +20,30 @@ import (
 	"flag"
 	"fmt"
 	//"runtime/pprof"
+	"musicrawler/filecrawler"
+	"musicrawler/index"
+	"musicrawler/source"
 	"time"
 )
 
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
-func updateFiles(dir string, index *Index) {
+func updateFiles(dir string, i *index.Index) {
 	var added, updated int
 
-	trackInfoChannel := make(chan TrackInfo)
-	statusChannel := make(chan *UpdateStatus)
-	resultChannel := make(chan *UpdateResult)
+	trackInfoChannel := make(chan source.TrackInfo)
+	statusChannel := make(chan *index.UpdateStatus)
+	resultChannel := make(chan *index.UpdateResult)
 	doneChannel := make(chan bool)
 
 	timeStart := time.Now()
 
 	// Output of crawler(s) connects to the input of index.Update() over
 	// trackInfoChannel channel
-	go index.Update(trackInfoChannel, statusChannel, resultChannel)
+	go i.Update(trackInfoChannel, statusChannel, resultChannel)
 
-	filecrawler := NewFileCrawler(dir, supportedFileTypes)
-	go filecrawler.Crawl(trackInfoChannel, doneChannel)
+	fc := filecrawler.NewFileCrawler(dir, supportedFileTypes)
+	go fc.Crawl(trackInfoChannel, doneChannel)
 
 	//tt := new(testCrawler)
 	//go tt.Crawl(trackInfoChannel, doneChannel)
@@ -53,17 +56,17 @@ func updateFiles(dir string, index *Index) {
 	counter := 0
 	for status := range statusChannel {
 		counter++
-		if status.err != nil {
+		if status.Err != nil {
 			fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
-				status.action, status.path, status.err)
+				status.Action, status.Path, status.Err)
 		} else {
 			if *verbosity {
-				fmt.Printf("%6d: %d, %s\n", counter, status.action, status.path)
+				fmt.Printf("%6d: %d, %s\n", counter, status.Action, status.Path)
 			}
-			switch status.action {
-			case TRACK_UPDATE:
+			switch status.Action {
+			case index.TRACK_UPDATE:
 				updated++
-			case TRACK_ADD:
+			case index.TRACK_ADD:
 				added++
 			}
 		}
@@ -72,8 +75,8 @@ func updateFiles(dir string, index *Index) {
 	deltaTime := time.Since(timeStart).Seconds()
 
 	result := <-resultChannel
-	if result.err != nil {
-		fmt.Println("DATABASE ERROR:", result.err)
+	if result.Err != nil {
+		fmt.Println("DATABASE ERROR:", result.Err)
 	}
 
 	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
@@ -109,12 +112,12 @@ func main() {
 	// open or create database
 	fmt.Println("-> Open database:", dbFileName)
 
-	index, err := NewIndex(dbFileName)
+	index, err := index.NewIndex(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
 	}
-	//defer index.Close()
+	defer index.Close()
 
 	fmt.Println("-> Update files.")
 	updateFiles(dir, index)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"musicrawler/source"
 )
 
 type testCrawler string
@@ -56,9 +57,9 @@ func (ti *TestInfo) Mtime() int64 {
 }
 
 // Reads tags (id3, vorbis,…) from file
-func (ti *TestInfo) Tags() (*TrackTags, error) {
+func (ti *TestInfo) Tags() (*source.TrackTags, error) {
 
-	return &TrackTags{
+	return &source.TrackTags{
 		Path:    ti.path,
 		Title:   randomString(40),
 		Artist:  getArtist(),
@@ -72,7 +73,7 @@ func (ti *TestInfo) Tags() (*TrackTags, error) {
 	}, nil
 }
 
-func (t *testCrawler) Crawl(tracks chan<- TrackInfo, done chan<- bool) {
+func (t *testCrawler) Crawl(tracks chan<- source.TrackInfo, done chan<- bool) {
 	for i := int64(0); i < TRACKNUMBER; i++ {
 		tracks <- &TestInfo{path: randomString(50 + rand.Int()%70), mtime: i}
 	}
