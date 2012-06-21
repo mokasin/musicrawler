@@ -65,7 +65,7 @@ type FileCrawler struct {
 }
 
 // Constructor of FileCrawler
-func NewFileCrawler(dir string, filetypes []string) *FileCrawler {
+func New(dir string, filetypes []string) *FileCrawler {
 	return &FileCrawler{Dir: dir, Filetypes: filetypes}
 }
 

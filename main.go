@@ -22,36 +22,20 @@ import (
 	//"runtime/pprof"
 	"musicrawler/filecrawler"
 	"musicrawler/index"
-	"musicrawler/source"
 	"time"
 )
 
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
-func updateFiles(dir string, i *index.Index) {
+func updateTracks() {
 	var added, updated int
 
-	trackInfoChannel := make(chan source.TrackInfo, 100)
 	statusChannel := make(chan *index.UpdateStatus, 100)
-	resultChannel := make(chan *index.UpdateResult)
-	doneChannel := make(chan bool)
+	resultChannel := make(chan error)
 
 	timeStart := time.Now()
 
-	// Output of crawler(s) connects to the input of index.Update() over
-	// trackInfoChannel channel
-	go i.Update(trackInfoChannel, statusChannel, resultChannel)
-
-	fc := filecrawler.NewFileCrawler(dir, supportedFileTypes)
-	go fc.Crawl(trackInfoChannel, doneChannel)
-
-	//tt := new(testCrawler)
-	//go tt.Crawl(trackInfoChannel, doneChannel)
-
-	go func() {
-		<-doneChannel
-		close(trackInfoChannel)
-	}()
+	go sourceList.Update(statusChannel, resultChannel)
 
 	counter := 0
 	for status := range statusChannel {
@@ -72,12 +56,11 @@ func updateFiles(dir string, i *index.Index) {
 		}
 	}
 
-	deltaTime := time.Since(timeStart).Seconds()
-
-	result := <-resultChannel
-	if result.Err != nil {
-		fmt.Println("DATABASE ERROR:", result.Err)
+	r := <-resultChannel
+	if r != nil {
+		fmt.Printf("ERROR: %v", r)
 	}
+	deltaTime := time.Since(timeStart).Seconds()
 
 	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
 	fmt.Printf("Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
@@ -85,13 +68,12 @@ func updateFiles(dir string, i *index.Index) {
 }
 
 var verbosity = flag.Bool("v", false, "be verbose")
+var sourceList *SourceList
 
 func main() {
-	var dir string = "."
 	var dbFileName string
 	//var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&dbFileName, "database", "index.db", "path to database")
-
 	flag.Parse()
 
 	////PROFILER START
@@ -105,13 +87,9 @@ func main() {
 	//}
 	////PROFILER END
 
-	if flag.NArg() != 0 {
-		dir = flag.Arg(0)
-	}
-
-	// open or create database
 	fmt.Println("-> Open database:", dbFileName)
 
+	// open or create database
 	index, err := index.NewIndex(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
@@ -119,6 +97,21 @@ func main() {
 	}
 	defer index.Close()
 
+	sourceList = NewSourceList(index)
+
+	if flag.NArg() == 0 {
+		sourceList.Add(filecrawler.New(".", supportedFileTypes))
+		fmt.Println("-> Crawling directory: ./")
+	} else {
+		for i := 0; i < flag.NArg(); i++ {
+			sourceList.Add(filecrawler.New(flag.Arg(i), supportedFileTypes))
+			fmt.Println("-> Crawling directory:", flag.Arg(i))
+		}
+	}
+
+	tt := new(testCrawler)
+	sourceList.Add(tt)
+
 	fmt.Println("-> Update files.")
-	updateFiles(dir, index)
+	updateTracks()
 }

@@ -16,8 +16,7 @@
 
 package source
 
-// TODO Documenation
-
+// Metadata for a track
 type TrackTags struct {
 	Path    string
 	Title   string
@@ -31,12 +30,16 @@ type TrackTags struct {
 	Length  uint
 }
 
+// Basic information about a track.
 type TrackInfo interface {
 	Path() string
 	Mtime() int64
 	Tags() (*TrackTags, error)
 }
 
+// Abstract interface for sources of tracks. To implement the interface a method
+// Crawl has to be defined, that sends the tracks of the source over the tracks
+// channel.
 type TrackSource interface {
 	Crawl(tracks chan<- TrackInfo, done chan<- bool)
 }

@@ -5,7 +5,8 @@ import (
 	"musicrawler/source"
 )
 
-type testCrawler string
+type testCrawler struct {
+}
 
 func randomString(length int) string {
 	glyphs := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
