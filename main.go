@@ -31,8 +31,8 @@ var supportedFileTypes []string = []string{"mp3", "ogg"}
 func updateFiles(dir string, i *index.Index) {
 	var added, updated int
 
-	trackInfoChannel := make(chan source.TrackInfo)
-	statusChannel := make(chan *index.UpdateStatus)
+	trackInfoChannel := make(chan source.TrackInfo, 100)
+	statusChannel := make(chan *index.UpdateStatus, 100)
 	resultChannel := make(chan *index.UpdateResult)
 	doneChannel := make(chan bool)
 
