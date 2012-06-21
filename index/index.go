@@ -337,35 +337,3 @@ func (i *Index) update(tracks <-chan source.TrackInfo,
 	close(status)
 	return &UpdateResult{Err: nil}
 }
-
-// Returns a source.TrackTags struct of the track at the given path.
-func (i *Index) GetTrackByPath(path string) (t *source.TrackTags, err error) {
-	stmt, err := i.db.Prepare(
-		`SELECT tr.title, tr.year, tr.tracknumber, ar.name, al.name
-			FROM Track tr
-				JOIN Artist ar ON tr.trackartist = ar.ID
-				JOIN Album  al ON tr.trackalbum  = al.ID
-			WHERE tr.path = ?;`)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	var title, artist, album string
-	var year, track uint
-	if err := stmt.QueryRow(path).Scan(
-		&title, &year, &track, &artist, &album); err != nil {
-		return nil, err
-	}
-
-	return &source.TrackTags{
-		Path:    path,
-		Title:   title,
-		Artist:  artist,
-		Album:   album,
-		Comment: "", // not yet in database
-		Genre:   "",
-		Year:    year,
-		Track:   track,
-	}, nil
-}

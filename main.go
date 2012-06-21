@@ -22,6 +22,7 @@ import (
 	//"runtime/pprof"
 	"musicrawler/filecrawler"
 	"musicrawler/index"
+	"musicrawler/source"
 	"time"
 )
 
@@ -109,9 +110,18 @@ func main() {
 		}
 	}
 
-	tt := new(testCrawler)
-	sourceList.Add(tt)
-
 	fmt.Println("-> Update files.")
 	updateTracks()
+
+	l, err := index.Query(source.TrackTags{Artist: "Seatbelts", Track: 2})
+	if err != nil {
+		fmt.Println("ERROR:", err)
+	}
+
+	for e := l.Front(); e != nil; e = e.Next() {
+		t, ok := e.Value.(source.TrackTags)
+		if ok {
+			fmt.Printf("%s\t\t%s\t\t%s\n", t.Artist, t.Album, t.Title)
+		}
+	}
 }

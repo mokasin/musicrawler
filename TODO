@@ -7,7 +7,7 @@ Todo
 
 index.go
 --------
-* method(s) to query the database
+* use FTS (Full Text Search) to accelerate wildcard search queries
 
 Longterm
 ========
