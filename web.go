@@ -26,7 +26,10 @@ import (
 )
 
 // FIXME: needs an absolute path so musicrawler can be run anywhere
-const assets = "web/assets"
+const web = "web/"
+const assets = web + "assets"
+
+var templates = template.Must(template.ParseFiles(web + "templates/index.html"))
 
 type HttpTrackServer struct {
 	index *index.Index
@@ -38,13 +41,16 @@ type page struct {
 	Body  template.HTML
 }
 
+func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
+	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // Quick and dirty handler to serve all tracks in the database. Works just for
 // files.
 func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("./web/templates/index.html")
-	if err != nil {
-		log.Println(err)
-	}
 	p := &page{
 		Title: "musicrawler",
 	}
@@ -78,7 +84,7 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	body += "</table>"
 	p.Body = template.HTML(body)
 
-	t.Execute(w, p)
+	renderTemplate(w, "index", p)
 }
 
 // Serving a (mp3)file.
