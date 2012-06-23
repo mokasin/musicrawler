@@ -83,8 +83,8 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 
 	// Doesn't work yet for mpeg due licensing problems.
 	//const audio = "<audio controls=\"controls}\"><source src=\"%s\" type=\"audio/mpeg\" />Not supported.</audio> "
-	//const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
-	const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
+	const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
+	//const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
 
 	for e := l.Front(); e != nil; e = e.Next() {
 		t, ok := e.Value.(source.TrackTags)
