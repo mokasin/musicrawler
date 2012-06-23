@@ -7,6 +7,7 @@
     %link(href="assets/css/bootstrap.css" rel="stylesheet")
     %link(href="assets/css/bootstrap-responsive.css" rel="stylesheet")
     %link(href="assets/soundmanager/css/mp3-player-button.css" rel="stylesheet")
+    -#%link(href="assets/soundmanager/360-player/360player.css" rel="stylesheet")
 
     %style
       body { padding-top: 60px }
@@ -55,9 +56,8 @@
     -# %script(src="assets/js/bootstrap-carousel.js")
     -# %script(src="assets/js/bootstrap-typeahead.js")
     %script(src="assets/soundmanager/script/soundmanager2.js")
-    %script
-      soundManager.url = 'assets/soundmanager/swf/';
-      soundManager.flashVersion = 9; // optional: shiny features (default = 8)
+    %script(src="assets/soundmanager/script/settings.js")
+
     %script(src="assets/soundmanager/script/mp3-player-button.js")
-
-
+    -#%script(src="assets/soundmanager/360-player/script/berniecode-animator.js")
+    -#%script(src="assets/soundmanager/360-player/script/360player.js")

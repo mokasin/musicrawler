@@ -10,7 +10,7 @@ def rebuild_haml(path)
   end
 end
 
-Listen.to('html/templates', :filter => /\.haml$/) do |modified, added, removed|
+Listen.to('web/templates', :filter => /\.haml$/) do |modified, added, removed|
 	modified.each {|p| rebuild_haml(p)}
 	added.each {|p| rebuild_haml(p)}
 end

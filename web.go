@@ -17,6 +17,7 @@
 package main
 
 import (
+	"container/list"
 	"fmt"
 	"html/template"
 	"log"
@@ -31,8 +32,14 @@ const assets = web + "assets"
 
 var templates = template.Must(template.ParseFiles(web + "templates/index.html"))
 
+type tracksCache struct {
+	cache *list.List
+	ctime int64
+}
+
 type HttpTrackServer struct {
 	index *index.Index
+	tc    tracksCache
 }
 
 // Baisc page structure.
@@ -48,6 +55,19 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 	}
 }
 
+func (hts *HttpTrackServer) tracksCache() *list.List {
+	if hts.index.Timestamp() != hts.tc.ctime {
+		var err error
+		hts.tc.cache, err = hts.index.GetAllTracks()
+		if err != nil {
+			log.Println("ERROR:", err)
+		}
+		hts.tc.ctime = hts.index.Timestamp()
+	}
+
+	return hts.tc.cache
+}
+
 // Quick and dirty handler to serve all tracks in the database. Works just for
 // files.
 func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Request) {
@@ -55,10 +75,7 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 		Title: "musicrawler",
 	}
 
-	l, err := hts.index.GetAllTracks()
-	if err != nil {
-		fmt.Println("ERROR:", err)
-	}
+	l := hts.tracksCache()
 
 	// Bad style. Don'mix look with code! But for now…
 	body := "<table class=\"table table-condensed\">"
@@ -66,14 +83,15 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 
 	// Doesn't work yet for mpeg due licensing problems.
 	//const audio = "<audio controls=\"controls}\"><source src=\"%s\" type=\"audio/mpeg\" />Not supported.</audio> "
-	const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\">%s</a>"
+	//const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
+	const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
 
 	for e := l.Front(); e != nil; e = e.Next() {
 		t, ok := e.Value.(source.TrackTags)
 		if ok {
 			body += fmt.Sprintf(
 				"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
-				fmt.Sprintf(audio, t.Path, t.Title),
+				fmt.Sprintf(audio, t.Path),
 				t.Artist,
 				"<a href=\"content"+t.Path+"\">"+t.Title+"</a>",
 				t.Album,
@@ -89,10 +107,28 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 
 // Serving a (mp3)file.
 func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Request) {
-	if *verbosity {
-		log.Printf("Serving %s to %s", r.URL.Path[8:], r.RemoteAddr)
+	// validate path against database
+	valid := false
+	path := r.URL.Path[8:]
+	for e := hts.tracksCache().Front(); e != nil; e = e.Next() {
+		val, ok := e.Value.(source.TrackTags)
+		if ok {
+			if path == val.Path {
+				valid = true
+				break
+			}
+		}
 	}
-	http.ServeFile(w, r, r.URL.Path[8:])
+
+	if !valid {
+		http.NotFound(w, r)
+		return
+	}
+
+	if *verbosity {
+		log.Printf("Serving %s to %s", path, r.RemoteAddr)
+	}
+	http.ServeFile(w, r, path)
 }
 
 // Constructor of HttpTrackServer. Needs an index.Index to work on.

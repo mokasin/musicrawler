@@ -61,6 +61,10 @@ func NewIndex(filename string) (*Index, error) {
 	return i, nil
 }
 
+func (i *Index) Timestamp() int64 {
+	return i.timestamp
+}
+
 // Closes the opened database.
 func (i *Index) Close() {
 	i.db.Close()
@@ -172,14 +176,14 @@ const (
 // Track-table.
 //
 // Returns the number of deleted rows and an error.
-func (i *Index) DeleteDanglingEntries(dbmtime int64) (int64, error) {
+func (i *Index) DeleteDanglingEntries() (int64, error) {
 	stmt, err := i.db.Prepare("DELETE FROM Track WHERE dbmtime <> ?")
 	if err != nil {
 		return 0, err
 	}
 	defer stmt.Close()
 
-	r, err := stmt.Exec(dbmtime)
+	r, err := stmt.Exec(i.timestamp)
 	deletedTracks, _ := r.RowsAffected()
 	if err != nil {
 		return deletedTracks, err
@@ -214,7 +218,7 @@ type UpdateResult struct {
 	Err error
 }
 
-// Update is a wrapper for update method, that should be could when using in a
+// Update is a wrapper for update method, that should be called when using in a
 // goroutine.
 //
 // It makes sure everything is cleaned up nicely before the signal gets emmitted

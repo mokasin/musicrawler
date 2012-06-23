@@ -112,10 +112,16 @@ func main() {
 	fmt.Println("-> Update files.")
 	updateTracks()
 
+	fmt.Print("-> Cleanup database.")
+	if del, err := index.DeleteDanglingEntries(); err != nil {
+		fmt.Println("ERROR:", err)
+	} else {
+		fmt.Printf(" %d tracks deleted.\n", del)
+	}
+
 	fmt.Println("-> Starting webserver...\n")
 
 	httptrackserver := NewHttpTrackServer(index)
-
 	if err := httptrackserver.StartListing(); err != nil {
 		fmt.Println("ERROR:", err)
 	}
