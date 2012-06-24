@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"log"
@@ -30,7 +31,8 @@ import (
 const web = "web/"
 const assets = web + "assets"
 
-var templates = template.Must(template.ParseFiles(web + "templates/index.html"))
+var templates = template.Must(template.ParseFiles(web+"templates/index.html",
+	web+"templates/alltracks.html"))
 
 type tracksCache struct {
 	cache *[]source.TrackTags
@@ -46,6 +48,14 @@ type HttpTrackServer struct {
 type page struct {
 	Title string
 	Body  template.HTML
+}
+
+func renderToString(template *template.Template, data interface{}) (string, error) {
+	var buffer bytes.Buffer
+	if err := template.Execute(&buffer, data); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
@@ -66,6 +76,17 @@ func (hts *HttpTrackServer) tracksCache() *[]source.TrackTags {
 	}
 
 	return hts.tc.cache
+}
+
+type pager struct {
+	Label  string
+	Path   string
+	Active bool
+}
+
+type tracks struct {
+	Tracks []source.TrackTags
+	Pager  []pager
 }
 
 // Quick and dirty handler to serve all tracks in the database. Works just for
@@ -95,12 +116,6 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	p := &page{
 		Title: "musicrawler",
 	}
-	// Bad style. Don'mix look with code! But for now…
-	body := "<table class=\"table table-condensed\">"
-	body += "<thead><tr><th></th><th>Artist</th><th>Title</th><th>Album</th><th>Year</th></thead>"
-
-	const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
-	//const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
 
 	if pagenum < 0 {
 		pagenum = 0
@@ -108,44 +123,36 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 		pagenum = len(*l) / shownTracks
 	}
 
-	var prevnext string
-	if pagenum == 0 {
-		prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
-	} else if pagenum == len(*l)/shownTracks {
-		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | Next"
-	} else {
-		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
+	// slicing the right tracks
+	min, max := pagenum*100, pagenum*100+shownTracks-1
+	if max >= len(*l) {
+		max = len(*l) - 1
 	}
 
-	// Display a list of pages above and below the table 
-	var pagelinks string
-	for e := 0; e < len(*l)/shownTracks+1; e++ {
-		if pagenum == e {
-			pagelinks += "<button class=\"btn btn-primary\">" + strconv.Itoa(e) + "</button> "
-		} else {
-			pagelinks += "<a href=\"" + strconv.Itoa(e) + "\" class=\"btn\">" + strconv.Itoa(e) + "</a> "
+	// populating data
+	t := &tracks{
+		Tracks: (*l)[min:max],
+		Pager:  make([]pager, len(*l)/shownTracks+1),
+	}
+	for i := 0; i < len(t.Pager); i++ {
+		if i == pagenum {
+			t.Pager[i].Active = true
 		}
+		t.Pager[i].Label = strconv.Itoa(i)
+		t.Pager[i].Path = strconv.Itoa(i)
 	}
 
-	body += "<p>" + prevnext + "</p>"
-	body += "<p>" + pagelinks + "</p>"
+	//var prevnext string
+	//if pagenum == 0 {
+	//	prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
+	//} else if pagenum == len(*l)/shownTracks {
+	//	prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | Next"
+	//} else {
+	//	prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
+	//}
 
-	// Display $shownTracks elements
-	for i := pagenum * 100; i < pagenum*100+shownTracks && i < len(*l); i++ {
-		body += fmt.Sprintf(
-			"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
-			fmt.Sprintf(audio, (*l)[i].Path),
-			(*l)[i].Artist,
-			"<a href=\"content"+(*l)[i].Path+"\">"+(*l)[i].Title+"</a>",
-			(*l)[i].Album,
-			strconv.Itoa(int((*l)[i].Year)),
-		)
-	}
-
-	body += "</table>"
-	body += "<p>" + prevnext + "</p>"
-	body += "<p>" + pagelinks + "</p>"
-
+	// render alltracks to string to nest it into index
+	body, _ := renderToString(templates.Lookup("alltracks.html"), t)
 	p.Body = template.HTML(body)
 
 	renderTemplate(w, "index", p)
