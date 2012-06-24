@@ -97,14 +97,14 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 		pagenum = l.Len() / shownTracks
 	}
 
-  var prevnext string
-  if pagenum == 0 {
-    prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1)  +"\" >Next </a>"
-  } else if pagenum == l.Len()/shownTracks {
-    prevnext = "<a href=\"" + strconv.Itoa(pagenum-1)  +"\" > Previous</a> | Next"
-  } else {
-     prevnext = "<a href=\"" + strconv.Itoa(pagenum-1)  +"\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1)  +"\" >Next </a>"
-  }
+	var prevnext string
+	if pagenum == 0 {
+		prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
+	} else if pagenum == l.Len()/shownTracks {
+		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | Next"
+	} else {
+		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
+	}
 
 	// Display a list of pages above and below the table 
 	var pagelinks string
@@ -115,8 +115,8 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 			pagelinks += "<a href=\"" + strconv.Itoa(e) + "\">[" + strconv.Itoa(e) + "]</a> "
 		}
 	}
-  
-  body += "<p>" + prevnext + "</p>"
+
+	body += "<p>" + prevnext + "</p>"
 	body += "<p>" + pagelinks + "</p>"
 
 	// Traverse the list to find a starting point 
@@ -145,7 +145,7 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	}
 
 	body += "</table>"
-  body += "<p>" + prevnext + "</p>"
+	body += "<p>" + prevnext + "</p>"
 	body += "<p>" + pagelinks + "</p>"
 
 	p.Body = template.HTML(body)
