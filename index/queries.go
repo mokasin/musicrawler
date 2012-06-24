@@ -65,9 +65,9 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 }
 
 // Does a substring match on every non empty entry in tt.
-func (i *Index) Query(tt source.TrackTags) (*[]source.TrackTags, error) {
+func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
 	query :=
-		`SELECT tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name
+		`SELECT %s
  FROM Track tr
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID
@@ -81,47 +81,32 @@ func (i *Index) Query(tt source.TrackTags) (*[]source.TrackTags, error) {
 		query += fmt.Sprintf(" AND tr.tracknumber=%d", tt.Track)
 	}
 
-	count, _ := i.QueryCount(tt)
+	tx, err := i.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	var count int
+	queryCount := fmt.Sprintf(query, "COUNT(*)")
+	if err := tx.QueryRow(queryCount).Scan(&count); err != nil {
+		return nil, err
+	}
 
 	// allocating big enough array
 	tracks := make([]source.TrackTags, count)
 
-	rows, err := i.db.Query(query, tt.Path, tt.Title, tt.Artist, tt.Album)
+	querySelect := fmt.Sprintf(query,
+		"tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name")
+	rows, err := tx.Query(querySelect, tt.Path, tt.Title, tt.Artist, tt.Album)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	err = rows2TrackList(rows, &tracks)
 	return &tracks, err
-}
-
-// Returns how many tracks with the given values are stored in the database
-func (i *Index) QueryCount(tt source.TrackTags) (int, error) {
-	query :=
-		`SELECT COUNT(*)
- FROM Track tr
- JOIN Artist ar ON tr.trackartist = ar.ID
- JOIN Album  al ON tr.trackalbum  = al.ID
- WHERE tr.path LIKE '%' || ? || '%' AND tr.title LIKE '%' || ? || '%'
- AND ar.name LIKE '%' || ? || '%' AND al.name LIKE '%' || ? || '%'`
-
-	if tt.Year != 0 {
-		query += fmt.Sprintf(" AND tr.year=%d", tt.Year)
-	}
-	if tt.Track != 0 {
-		query += fmt.Sprintf(" AND tr.tracknumber=%d", tt.Track)
-	}
-
-	row := i.db.QueryRow(query, tt.Path, tt.Title, tt.Artist, tt.Album)
-
-	var count int
-
-	err := row.Scan(&count)
-	if err != nil {
-		return -1, err
-	}
-
-	return count, err
-
 }

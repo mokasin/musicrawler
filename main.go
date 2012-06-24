@@ -74,6 +74,7 @@ func main() {
 	var dbFileName string
 	//var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&dbFileName, "database", "index.db", "path to database")
+	updateFlag := flag.Bool("u", true, "update database")
 	flag.Parse()
 
 	////PROFILER START
@@ -99,24 +100,26 @@ func main() {
 
 	sourceList = NewSourceList(index)
 
-	if flag.NArg() == 0 {
-		sourceList.Add(filecrawler.New(".", supportedFileTypes))
-		fmt.Println("-> Crawling directory: ./")
-	} else {
-		for i := 0; i < flag.NArg(); i++ {
-			sourceList.Add(filecrawler.New(flag.Arg(i), supportedFileTypes))
-			fmt.Println("-> Crawling directory:", flag.Arg(i))
+	if *updateFlag {
+		if flag.NArg() == 0 {
+			sourceList.Add(filecrawler.New(".", supportedFileTypes))
+			fmt.Println("-> Crawling directory: ./")
+		} else {
+			for i := 0; i < flag.NArg(); i++ {
+				sourceList.Add(filecrawler.New(flag.Arg(i), supportedFileTypes))
+				fmt.Println("-> Crawling directory:", flag.Arg(i))
+			}
 		}
-	}
 
-	fmt.Println("-> Update files.")
-	updateTracks()
+		fmt.Println("-> Update files.")
+		updateTracks()
 
-	fmt.Print("-> Cleanup database.")
-	if del, err := index.DeleteDanglingEntries(); err != nil {
-		fmt.Println("ERROR:", err)
-	} else {
-		fmt.Printf(" %d tracks deleted.\n", del)
+		fmt.Print("-> Cleanup database.")
+		if del, err := index.DeleteDanglingEntries(); err != nil {
+			fmt.Println("ERROR:", err)
+		} else {
+			fmt.Printf(" %d tracks deleted.\n", del)
+		}
 	}
 
 	fmt.Println("-> Starting webserver...\n")

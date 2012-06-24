@@ -56,7 +56,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 }
 
 func (hts *HttpTrackServer) tracksCache() *[]source.TrackTags {
-	if hts.index.Timestamp() != hts.tc.ctime {
+	if hts.index.Timestamp() > hts.tc.ctime || hts.index.Timestamp() == 0 {
 		var err error
 		hts.tc.cache, err = hts.index.GetAllTracks()
 		if err != nil {
