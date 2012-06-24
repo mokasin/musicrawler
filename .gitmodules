@@ -1,3 +1,3 @@
-[submodule "web/assets/soundmanager2"]
-	path = web/assets/soundmanager2
+[submodule "external/SoundManager2"]
+	path = external/SoundManager2
 	url = https://github.com/scottschiller/SoundManager2.git
