@@ -77,9 +77,17 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	l := hts.tracksCache()
 
 	var pagestring string
-	fmt.Sscanf(r.RequestURI, "/%s", &pagestring)
-	pagenum, err := strconv.Atoi(pagestring)
-	if err != nil || pagenum > len(*l)/shownTracks {
+	var pagenum int
+	if _, err := fmt.Sscanf(r.RequestURI, "/%s", &pagestring); err != nil {
+		pagenum = 0
+	} else {
+		pagenum, err = strconv.Atoi(pagestring)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	if pagenum < 0 || pagenum > len(*l)/shownTracks {
 		http.NotFound(w, r)
 		return
 	}
