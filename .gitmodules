@@ -1,0 +1,3 @@
+[submodule "web/assets/soundmanager2"]
+	path = web/assets/soundmanager2
+	url = https://github.com/scottschiller/SoundManager2.git
