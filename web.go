@@ -113,9 +113,9 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	var pagelinks string
 	for e := 0; e < len(*l)/shownTracks+1; e++ {
 		if pagenum == e {
-			pagelinks += "[" + strconv.Itoa(e) + "] "
+			pagelinks += "<button class=\"btn btn-primary\">" + strconv.Itoa(e) + "</button> "
 		} else {
-			pagelinks += "<a href=\"" + strconv.Itoa(e) + "\">[" + strconv.Itoa(e) + "]</a> "
+			pagelinks += "<a href=\"" + strconv.Itoa(e) + "\" class=\"btn\">" + strconv.Itoa(e) + "</a> "
 		}
 	}
 
