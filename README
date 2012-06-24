@@ -18,13 +18,15 @@ Dependencies
   (http://developer.kde.org/~wheeler/taglib.html)
 * gotaglib
 * go-sqlite3 by Yasuhiro Matsumoto (https://github.com/mattn/go-sqlite3)
+* HAML
+* LESS (for Bootstrap)
 
 Build
 -----
 
 $ ./make.sh
 
-To build with debug symbols just run
+To build with debug symbols just
 $ go build
 yourself.
 
