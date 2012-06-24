@@ -1,21 +1,19 @@
 package index
 
 import (
-	"container/list"
 	"database/sql"
 	"fmt"
 	"musicrawler/source"
 )
 
-func rows2TrackList(rows *sql.Rows) (*list.List, error) {
-	l := list.New()
-
+func rows2TrackList(rows *sql.Rows, array *[]source.TrackTags) error {
 	var path, title, artist, album string
 	var year, track uint
 
+	i := 0
 	for rows.Next() {
 		if err := rows.Scan(&path, &title, &year, &track, &artist, &album); err == nil {
-			l.PushBack(source.TrackTags{
+			(*array)[i] = source.TrackTags{
 				Path:    path,
 				Title:   title,
 				Artist:  artist,
@@ -24,35 +22,50 @@ func rows2TrackList(rows *sql.Rows) (*list.List, error) {
 				Genre:   "",
 				Year:    year,
 				Track:   track,
-			})
+			}
 		}
+		i++
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return l, nil
+	return rows.Err()
 }
 
 // Returns list of source.TrackTags of all tracks in the database.
-func (i *Index) GetAllTracks() (*list.List, error) {
-	rows, err := i.db.Query(
+func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
+
+	tx, err := i.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	var count int
+	if err := tx.QueryRow("SELECT COUNT(path) FROM Track").Scan(&count); err != nil {
+		return nil, err
+	}
+
+	// allocating big enough array
+	tracks := make([]source.TrackTags, count)
+
+	rows, err := tx.Query(
 		`SELECT tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name
  FROM Track tr
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID;`)
-
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	return rows2TrackList(rows)
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	err = rows2TrackList(rows, &tracks)
+	return &tracks, err
 }
 
 // Does a substring match on every non empty entry in tt.
-func (i *Index) Query(tt source.TrackTags) (*list.List, error) {
+func (i *Index) Query(tt source.TrackTags) (*[]source.TrackTags, error) {
 	query :=
 		`SELECT tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name
  FROM Track tr
@@ -68,11 +81,20 @@ func (i *Index) Query(tt source.TrackTags) (*list.List, error) {
 		query += fmt.Sprintf(" AND tr.tracknumber=%d", tt.Track)
 	}
 
+	tx, err := i.db.Begin()
+
+	var count int
+	tx.QueryRow("SELECT COUNT(path) FROM Track").Scan(&count)
+
+	// allocating big enough array
+	tracks := make([]source.TrackTags, count)
+
 	rows, err := i.db.Query(query, tt.Path, tt.Title, tt.Artist, tt.Album)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	return rows2TrackList(rows)
+	err = rows2TrackList(rows, &tracks)
+	return &tracks, err
 }

@@ -17,7 +17,6 @@
 package main
 
 import (
-	"container/list"
 	"fmt"
 	"html/template"
 	"log"
@@ -34,7 +33,7 @@ const assets = web + "assets"
 var templates = template.Must(template.ParseFiles(web + "templates/index.html"))
 
 type tracksCache struct {
-	cache *list.List
+	cache *[]source.TrackTags
 	ctime int64
 }
 
@@ -56,7 +55,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 	}
 }
 
-func (hts *HttpTrackServer) tracksCache() *list.List {
+func (hts *HttpTrackServer) tracksCache() *[]source.TrackTags {
 	if hts.index.Timestamp() != hts.tc.ctime {
 		var err error
 		hts.tc.cache, err = hts.index.GetAllTracks()
@@ -72,35 +71,39 @@ func (hts *HttpTrackServer) tracksCache() *list.List {
 // Quick and dirty handler to serve all tracks in the database. Works just for
 // files.
 func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Request) {
+	// Only show that many tracks on one page
+	const shownTracks = 100
+
+	l := hts.tracksCache()
+
+	var pagestring string
+	fmt.Sscanf(r.RequestURI, "/%s", &pagestring)
+	pagenum, err := strconv.Atoi(pagestring)
+	if err != nil || pagenum > len(*l)/shownTracks {
+		http.NotFound(w, r)
+		return
+	}
+
 	p := &page{
 		Title: "musicrawler",
 	}
-	l := hts.tracksCache()
 	// Bad style. Don'mix look with code! But for now…
 	body := "<table class=\"table table-condensed\">"
 	body += "<thead><tr><th></th><th>Artist</th><th>Title</th><th>Album</th><th>Year</th></thead>"
 
-	// Doesn't work yet for mpeg due licensing problems.
-	//const audio = "<audio controls=\"controls}\"><source src=\"%s\" type=\"audio/mpeg\" />Not supported.</audio> "
 	const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
 	//const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
 
-	// Only show that many tracks on one page
-	const shownTracks = 100
-
-	pagestring := ""
-	fmt.Sscanf(r.RequestURI, "/%s", &pagestring)
-	pagenum, _ := strconv.Atoi(pagestring)
 	if pagenum < 0 {
 		pagenum = 0
-	} else if pagenum > l.Len()/shownTracks+1 {
-		pagenum = l.Len() / shownTracks
+	} else if pagenum > len(*l)/shownTracks+1 {
+		pagenum = len(*l) / shownTracks
 	}
 
 	var prevnext string
 	if pagenum == 0 {
 		prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
-	} else if pagenum == l.Len()/shownTracks {
+	} else if pagenum == len(*l)/shownTracks {
 		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | Next"
 	} else {
 		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
@@ -108,7 +111,7 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 
 	// Display a list of pages above and below the table 
 	var pagelinks string
-	for e := 0; e < l.Len()/shownTracks+1; e++ {
+	for e := 0; e < len(*l)/shownTracks+1; e++ {
 		if pagenum == e {
 			pagelinks += "[" + strconv.Itoa(e) + "] "
 		} else {
@@ -119,29 +122,16 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	body += "<p>" + prevnext + "</p>"
 	body += "<p>" + pagelinks + "</p>"
 
-	// Traverse the list to find a starting point 
-	i := 0
-	firstElement := l.Front()
-	for e := l.Front(); e != nil && i != pagenum*100; e = e.Next() {
-		i++
-		firstElement = e
-	}
-
 	// Display $shownTracks elements
-	i = 0
-	for e := firstElement; e != nil && i < shownTracks; e = e.Next() {
-		t, ok := e.Value.(source.TrackTags)
-		if ok {
-			body += fmt.Sprintf(
-				"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
-				fmt.Sprintf(audio, t.Path),
-				t.Artist,
-				"<a href=\"content"+t.Path+"\">"+t.Title+"</a>",
-				t.Album,
-				strconv.Itoa(int(t.Year)),
-			)
-		}
-		i++
+	for i := pagenum * 100; i < pagenum*100+shownTracks && i < len(*l); i++ {
+		body += fmt.Sprintf(
+			"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
+			fmt.Sprintf(audio, (*l)[i].Path),
+			(*l)[i].Artist,
+			"<a href=\"content"+(*l)[i].Path+"\">"+(*l)[i].Title+"</a>",
+			(*l)[i].Album,
+			strconv.Itoa(int((*l)[i].Year)),
+		)
 	}
 
 	body += "</table>"
@@ -158,13 +148,10 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 	// validate path against database
 	valid := false
 	path := r.URL.Path[8:]
-	for e := hts.tracksCache().Front(); e != nil; e = e.Next() {
-		val, ok := e.Value.(source.TrackTags)
-		if ok {
-			if path == val.Path {
-				valid = true
-				break
-			}
+	for _, val := range *hts.tc.cache {
+		if path == val.Path {
+			valid = true
+			break
 		}
 	}
 
