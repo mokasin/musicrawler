@@ -81,10 +81,7 @@ func (i *Index) Query(tt source.TrackTags) (*[]source.TrackTags, error) {
 		query += fmt.Sprintf(" AND tr.tracknumber=%d", tt.Track)
 	}
 
-	tx, err := i.db.Begin()
-
-	var count int
-	tx.QueryRow("SELECT COUNT(path) FROM Track").Scan(&count)
+	count, _ := i.QueryCount(tt)
 
 	// allocating big enough array
 	tracks := make([]source.TrackTags, count)
@@ -97,4 +94,34 @@ func (i *Index) Query(tt source.TrackTags) (*[]source.TrackTags, error) {
 
 	err = rows2TrackList(rows, &tracks)
 	return &tracks, err
+}
+
+// Returns how many tracks with the given values are stored in the database
+func (i *Index) QueryCount(tt source.TrackTags) (int, error) {
+	query :=
+		`SELECT COUNT(*)
+ FROM Track tr
+ JOIN Artist ar ON tr.trackartist = ar.ID
+ JOIN Album  al ON tr.trackalbum  = al.ID
+ WHERE tr.path LIKE '%' || ? || '%' AND tr.title LIKE '%' || ? || '%'
+ AND ar.name LIKE '%' || ? || '%' AND al.name LIKE '%' || ? || '%'`
+
+	if tt.Year != 0 {
+		query += fmt.Sprintf(" AND tr.year=%d", tt.Year)
+	}
+	if tt.Track != 0 {
+		query += fmt.Sprintf(" AND tr.tracknumber=%d", tt.Track)
+	}
+
+	row := i.db.QueryRow(query, tt.Path, tt.Title, tt.Artist, tt.Album)
+
+	var count int
+
+	err := row.Scan(&count)
+	if err != nil {
+		return -1, err
+	}
+
+	return count, err
+
 }
