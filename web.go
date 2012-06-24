@@ -24,6 +24,7 @@ import (
 	"musicrawler/index"
 	"musicrawler/source"
 	"net/http"
+	"strconv"
 )
 
 // FIXME: needs an absolute path so musicrawler can be run anywhere
@@ -74,32 +75,79 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	p := &page{
 		Title: "musicrawler",
 	}
-
 	l := hts.tracksCache()
-
 	// Bad style. Don'mix look with code! But for now…
 	body := "<table class=\"table table-condensed\">"
-	body += "<thead><tr><th></th><th>Artist</th><th>Title</th><th>Album</th></thead>"
+	body += "<thead><tr><th></th><th>Artist</th><th>Title</th><th>Album</th><th>Year</th></thead>"
 
 	// Doesn't work yet for mpeg due licensing problems.
 	//const audio = "<audio controls=\"controls}\"><source src=\"%s\" type=\"audio/mpeg\" />Not supported.</audio> "
 	const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
 	//const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
 
-	for e := l.Front(); e != nil; e = e.Next() {
+	// Only show that many tracks on one page
+	const shownTracks = 100
+
+	pagestring := ""
+	fmt.Sscanf(r.RequestURI, "/%s", &pagestring)
+	pagenum, _ := strconv.Atoi(pagestring)
+	if pagenum < 0 {
+		pagenum = 0
+	} else if pagenum > l.Len()/shownTracks+1 {
+		pagenum = l.Len() / shownTracks
+	}
+
+  var prevnext string
+  if pagenum == 0 {
+    prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1)  +"\" >Next </a>"
+  } else if pagenum == l.Len()/shownTracks {
+    prevnext = "<a href=\"" + strconv.Itoa(pagenum-1)  +"\" > Previous</a> | Next"
+  } else {
+     prevnext = "<a href=\"" + strconv.Itoa(pagenum-1)  +"\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1)  +"\" >Next </a>"
+  }
+
+	// Display a list of pages above and below the table 
+	var pagelinks string
+	for e := 0; e < l.Len()/shownTracks+1; e++ {
+		if pagenum == e {
+			pagelinks += "[" + strconv.Itoa(e) + "] "
+		} else {
+			pagelinks += "<a href=\"" + strconv.Itoa(e) + "\">[" + strconv.Itoa(e) + "]</a> "
+		}
+	}
+  
+  body += "<p>" + prevnext + "</p>"
+	body += "<p>" + pagelinks + "</p>"
+
+	// Traverse the list to find a starting point 
+	i := 0
+	firstElement := l.Front()
+	for e := l.Front(); e != nil && i != pagenum*100; e = e.Next() {
+		i++
+		firstElement = e
+	}
+
+	// Display $shownTracks elements
+	i = 0
+	for e := firstElement; e != nil && i < shownTracks; e = e.Next() {
 		t, ok := e.Value.(source.TrackTags)
 		if ok {
 			body += fmt.Sprintf(
-				"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
+				"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
 				fmt.Sprintf(audio, t.Path),
 				t.Artist,
 				"<a href=\"content"+t.Path+"\">"+t.Title+"</a>",
 				t.Album,
+				strconv.Itoa(int(t.Year)),
 			)
 		}
+		i++
 	}
 
 	body += "</table>"
+  body += "<p>" + prevnext + "</p>"
+	body += "<p>" + pagelinks + "</p>"
+
 	p.Body = template.HTML(body)
 
 	renderTemplate(w, "index", p)
