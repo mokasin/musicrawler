@@ -22,10 +22,11 @@ Dependencies
 Build
 -----
 
-    $ go build
+$ ./make.sh
 
-	Without debugging symbols
-	$ go build -ldflags -s
+To build with debug symbols just run
+$ go build
+yourself.
 
 License
 -------
