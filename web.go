@@ -25,7 +25,7 @@ import (
 )
 
 // FIXME: needs an absolute path so musicrawler can be run anywhere
-const web = "web/"
+const web = "website/"
 const assets = web + "assets"
 
 // Caching the templates
