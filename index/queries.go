@@ -30,8 +30,15 @@ func rows2TrackList(rows *sql.Rows, array *[]source.TrackTags) error {
 	return rows.Err()
 }
 
+var cacheGetAllTracks []source.TrackTags
+var ctimeGetAllTracks int64 = -1
+
 // Returns list of source.TrackTags of all tracks in the database.
 func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
+	// if nothing has changed, just return cached array
+	if ctimeGetAllTracks == i.timestamp {
+		return &cacheGetAllTracks, nil
+	}
 
 	tx, err := i.db.Begin()
 	if err != nil {
@@ -44,7 +51,7 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 	}
 
 	// allocating big enough array
-	tracks := make([]source.TrackTags, count)
+	cacheGetAllTracks := make([]source.TrackTags, count)
 
 	rows, err := tx.Query(
 		`SELECT tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name
@@ -60,8 +67,8 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 		return nil, err
 	}
 
-	err = rows2TrackList(rows, &tracks)
-	return &tracks, err
+	err = rows2TrackList(rows, &cacheGetAllTracks)
+	return &cacheGetAllTracks, err
 }
 
 // Does a substring match on every non empty entry in tt.
