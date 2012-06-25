@@ -79,6 +79,10 @@ func (i *Index) GetAllArtists() (*[]string, error) {
 
 	tx, err := i.db.Begin()
 
+	if err != nil {
+		return nil, err
+	}
+
 	err = tx.QueryRow(fmt.Sprintf(query, "COUNT(*)")).Scan(&count)
 
 	if err != nil {
@@ -95,6 +99,9 @@ func (i *Index) GetAllArtists() (*[]string, error) {
 	defer rows.Close()
 
 	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
 
 	var artist string
 
