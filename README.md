@@ -8,9 +8,8 @@ HTTP/Json.
 
 Status
 ------
-At the moment, the basic indexing engine is operational.
 
-More is to come.
+Basic web access works.
 
 Dependencies
 ------------
@@ -28,7 +27,7 @@ $ ./make.sh
 
 To build with debug symbols just
 $ go build
-yourself.
+it yourself.
 
 License
 -------

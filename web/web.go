@@ -65,6 +65,7 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 func (hts *HttpTrackServer) StartListing() error {
 	c_allTracks := NewControllerAllTracks(hts.index)
 
+	// methods are no expression -> closure
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		c_allTracks.Handler(w, r)
 	})
