@@ -32,6 +32,7 @@ type Page struct {
 	Body  template.HTML
 }
 
+// Executes template tmpl with data and writes it to a string.
 func renderToString(tmpl *template.Template, data interface{}) (string, error) {
 	var buffer bytes.Buffer
 	if err := tmpl.Execute(&buffer, data); err != nil {
@@ -40,6 +41,7 @@ func renderToString(tmpl *template.Template, data interface{}) (string, error) {
 	return buffer.String(), nil
 }
 
+// Renders child into a template named tmpl that eats a Page struct.
 func renderInPage(w http.ResponseWriter, tmpl string, child *template.Template,
 	childData interface{}, p *Page) {
 	body, err := renderToString(child, childData)
@@ -52,6 +54,7 @@ func renderInPage(w http.ResponseWriter, tmpl string, child *template.Template,
 	renderPage(w, tmpl, p)
 }
 
+// Write template with name tmpl to w.
 func renderPage(w http.ResponseWriter, tmpl string, p *Page) {
 	err := pageTemplates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {

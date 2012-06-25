@@ -55,13 +55,10 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	//if *verbosity {
-	//	log.Printf("Serving %s to %s", path, r.RemoteAddr)
-	//}
 	http.ServeFile(w, r, path)
 }
 
-// Starts http server on port 8080
+// Starts http server on port 8080 and set routes.
 func (hts *HttpTrackServer) StartListing() error {
 	c_allTracks := NewControllerAllTracks(hts.index)
 

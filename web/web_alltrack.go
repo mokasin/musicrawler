@@ -25,6 +25,7 @@ import (
 	"strconv"
 )
 
+// Model of a simple pager.
 type pager struct {
 	Label  string
 	Path   string
@@ -39,10 +40,12 @@ type controllerAllTracks struct {
 	Pager  []pager
 }
 
+// Constructor.
 func NewControllerAllTracks(index *index.Index) *controllerAllTracks {
 	return &controllerAllTracks{index: index}
 }
 
+// Parses and returns template with name name.
 func (c *controllerAllTracks) Tmpl(name string) *template.Template {
 	if c.tmpl == nil {
 		c.tmpl = template.Must(
@@ -51,8 +54,7 @@ func (c *controllerAllTracks) Tmpl(name string) *template.Template {
 	return c.tmpl.Lookup(name + ".html")
 }
 
-// Quick and dirty handler to serve all tracks in the database. Works just for
-// files.
+// Shows unsorted list of all tracks in database.
 func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	// Only show that many tracks on one page
 	const shownTracks = 100
