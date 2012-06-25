@@ -1,6 +1,6 @@
 /*  Copyright 2012, mokasin
  *
- *  hts program is free software: you can redistribute it and/or modify
+ *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
@@ -14,48 +14,19 @@
  *  along with hts program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package web
 
 import (
-	"bytes"
-	"html/template"
-	"log"
 	"musicrawler/index"
 	"net/http"
 )
 
 // FIXME: needs an absolute path so musicrawler can be run anywhere
-const web = "website/"
-const assets = web + "assets"
-
-// Caching the templates
-var templates = template.Must(template.ParseFiles(web+"templates/index.html",
-	web+"templates/alltracks.html"))
-
-// Basic page structure.
-type page struct {
-	Title string
-	Body  template.HTML
-}
-
-func renderToString(template *template.Template, data interface{}) (string, error) {
-	var buffer bytes.Buffer
-	if err := template.Execute(&buffer, data); err != nil {
-		return "", err
-	}
-	return buffer.String(), nil
-}
-
-func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
-	err := templates.ExecuteTemplate(w, tmpl+".html", p)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+const websitePath = "website/"
+const websiteAssetsPath = websitePath + "assets/"
 
 type HttpTrackServer struct {
 	index *index.Index
-	tc    tracksCache
 }
 
 // Constructor of HttpTrackServer. Needs an index.Index to work on.
@@ -68,7 +39,11 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 	// validate path against database
 	valid := false
 	path := r.URL.Path[8:]
-	for _, val := range *hts.tc.cache {
+	tracks, err := hts.index.GetAllTracks()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	for _, val := range *tracks {
 		if path == val.Path {
 			valid = true
 			break
@@ -80,20 +55,22 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if *verbosity {
-		log.Printf("Serving %s to %s", path, r.RemoteAddr)
-	}
+	//if *verbosity {
+	//	log.Printf("Serving %s to %s", path, r.RemoteAddr)
+	//}
 	http.ServeFile(w, r, path)
 }
 
 // Starts http server on port 8080
 func (hts *HttpTrackServer) StartListing() error {
+	c_allTracks := NewControllerAllTracks(hts.index)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		hts.handlerAllTracks(w, r)
+		c_allTracks.Handler(w, r)
 	})
 
 	http.Handle("/assets/",
-		http.StripPrefix("/assets/", http.FileServer(http.Dir(assets))))
+		http.StripPrefix("/assets/", http.FileServer(http.Dir(websiteAssetsPath))))
 
 	http.HandleFunc("/content/", func(w http.ResponseWriter, r *http.Request) {
 		hts.handlerFileContent(w, r)
