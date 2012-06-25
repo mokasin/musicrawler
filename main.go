@@ -22,6 +22,7 @@ import (
 	//"runtime/pprof"
 	"musicrawler/filecrawler"
 	"musicrawler/index"
+	"musicrawler/web"
 	"time"
 )
 
@@ -124,7 +125,7 @@ func main() {
 
 	fmt.Println("-> Starting webserver...\n")
 
-	httptrackserver := NewHttpTrackServer(index)
+	httptrackserver := web.NewHttpTrackServer(index)
 	if err := httptrackserver.StartListing(); err != nil {
 		fmt.Println("ERROR:", err)
 	}

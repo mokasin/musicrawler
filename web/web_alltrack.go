@@ -1,47 +1,29 @@
 /*  Copyright 2012, mokasin
  *
- *  hts program is free software: you can redistribute it and/or modify
+ *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  hts program is distributed in the hope that it will be useful,
+ *  c program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with hts program. If not, see <http://www.gnu.org/licenses/>.
+ *  along with c program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package web
 
 import (
 	"fmt"
 	"html/template"
-	"log"
+	"musicrawler/index"
 	"musicrawler/source"
 	"net/http"
 	"strconv"
 )
-
-type tracksCache struct {
-	cache *[]source.TrackTags
-	ctime int64
-}
-
-func (hts *HttpTrackServer) tracksCache() *[]source.TrackTags {
-	if hts.index.Timestamp() > hts.tc.ctime || hts.index.Timestamp() == 0 {
-		var err error
-		hts.tc.cache, err = hts.index.GetAllTracks()
-		if err != nil {
-			log.Println("ERROR:", err)
-		}
-		hts.tc.ctime = hts.index.Timestamp()
-	}
-
-	return hts.tc.cache
-}
 
 type pager struct {
 	Label  string
@@ -49,18 +31,36 @@ type pager struct {
 	Active bool
 }
 
-type tracks struct {
+// Controller to serve all tracks
+type controllerAllTracks struct {
+	index  *index.Index
+	tmpl   *template.Template
 	Tracks []source.TrackTags
 	Pager  []pager
 }
 
+func NewControllerAllTracks(index *index.Index) *controllerAllTracks {
+	return &controllerAllTracks{index: index}
+}
+
+func (c *controllerAllTracks) Tmpl(name string) *template.Template {
+	if c.tmpl == nil {
+		c.tmpl = template.Must(
+			template.ParseFiles(websitePath + "templates/" + name + ".html"))
+	}
+	return c.tmpl.Lookup(name + ".html")
+}
+
 // Quick and dirty handler to serve all tracks in the database. Works just for
 // files.
-func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Request) {
+func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	// Only show that many tracks on one page
 	const shownTracks = 100
 
-	l := hts.tracksCache()
+	l, err := c.index.GetAllTracks()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
 	var pagestring string
 	var pagenum int
@@ -80,12 +80,6 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if pagenum < 0 {
-		pagenum = 0
-	} else if pagenum > len(*l)/shownTracks+1 {
-		pagenum = len(*l) / shownTracks
-	}
-
 	// slicing the right tracks
 	min, max := pagenum*100, pagenum*100+shownTracks-1
 	if max >= len(*l) {
@@ -93,25 +87,16 @@ func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Requ
 	}
 
 	// populating data
-	t := &tracks{
-		Tracks: (*l)[min:max],
-		Pager:  make([]pager, len(*l)/shownTracks+1),
-	}
-	for i := 0; i < len(t.Pager); i++ {
+	c.Tracks = (*l)[min:max]
+
+	c.Pager = make([]pager, len(*l)/shownTracks+1)
+	for i := 0; i < len(c.Pager); i++ {
 		if i == pagenum {
-			t.Pager[i].Active = true
+			c.Pager[i].Active = true
 		}
-		t.Pager[i].Label = strconv.Itoa(i)
-		t.Pager[i].Path = strconv.Itoa(i)
+		c.Pager[i].Label = strconv.Itoa(i)
+		c.Pager[i].Path = strconv.Itoa(i)
 	}
 
-	// FIXME: Error handling
-	// render alltracks to string to nest it into index
-	body, _ := renderToString(templates.Lookup("alltracks.html"), t)
-	p := &page{
-		Title: "musicrawler",
-		Body:  template.HTML(body),
-	}
-
-	renderTemplate(w, "index", p)
+	renderInPage(w, "index", c.Tmpl("alltracks"), c, &Page{Title: "musicrawler"})
 }
