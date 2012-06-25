@@ -17,35 +17,33 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"html/template"
 	"log"
 	"musicrawler/index"
-	"musicrawler/source"
 	"net/http"
-	"strconv"
 )
 
 // FIXME: needs an absolute path so musicrawler can be run anywhere
-const web = "web/"
+const web = "website/"
 const assets = web + "assets"
 
-var templates = template.Must(template.ParseFiles(web + "templates/index.html"))
+// Caching the templates
+var templates = template.Must(template.ParseFiles(web+"templates/index.html",
+	web+"templates/alltracks.html"))
 
-type tracksCache struct {
-	cache *[]source.TrackTags
-	ctime int64
-}
-
-type HttpTrackServer struct {
-	index *index.Index
-	tc    tracksCache
-}
-
-// Baisc page structure.
+// Basic page structure.
 type page struct {
 	Title string
 	Body  template.HTML
+}
+
+func renderToString(template *template.Template, data interface{}) (string, error) {
+	var buffer bytes.Buffer
+	if err := template.Execute(&buffer, data); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
@@ -55,100 +53,14 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *page) {
 	}
 }
 
-func (hts *HttpTrackServer) tracksCache() *[]source.TrackTags {
-	if hts.index.Timestamp() > hts.tc.ctime || hts.index.Timestamp() == 0 {
-		var err error
-		hts.tc.cache, err = hts.index.GetAllTracks()
-		if err != nil {
-			log.Println("ERROR:", err)
-		}
-		hts.tc.ctime = hts.index.Timestamp()
-	}
-
-	return hts.tc.cache
+type HttpTrackServer struct {
+	index *index.Index
+	tc    tracksCache
 }
 
-// Quick and dirty handler to serve all tracks in the database. Works just for
-// files.
-func (hts *HttpTrackServer) handlerAllTracks(w http.ResponseWriter, r *http.Request) {
-	// Only show that many tracks on one page
-	const shownTracks = 100
-
-	l := hts.tracksCache()
-
-	var pagestring string
-	var pagenum int
-	if _, err := fmt.Sscanf(r.RequestURI, "/%s", &pagestring); err != nil {
-		pagenum = 0
-	} else {
-		pagenum, err = strconv.Atoi(pagestring)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-	}
-	if pagenum < 0 || pagenum > len(*l)/shownTracks {
-		http.NotFound(w, r)
-		return
-	}
-
-	p := &page{
-		Title: "musicrawler",
-	}
-	// Bad style. Don'mix look with code! But for now…
-	body := "<table class=\"table table-condensed\">"
-	body += "<thead><tr><th></th><th>Artist</th><th>Title</th><th>Album</th><th>Year</th></thead>"
-
-	const audio = "<div class=\"sm2-inline-list ui360\"><a href=\"content%s\" title=\"Play\"></a></div>"
-	//const audio = "<a href=\"content%s\" title=\"Play\" class=\"sm2_button\"></a>"
-
-	if pagenum < 0 {
-		pagenum = 0
-	} else if pagenum > len(*l)/shownTracks+1 {
-		pagenum = len(*l) / shownTracks
-	}
-
-	var prevnext string
-	if pagenum == 0 {
-		prevnext = "Previous | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
-	} else if pagenum == len(*l)/shownTracks {
-		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | Next"
-	} else {
-		prevnext = "<a href=\"" + strconv.Itoa(pagenum-1) + "\" > Previous</a> | <a href=\"" + strconv.Itoa(pagenum+1) + "\" >Next </a>"
-	}
-
-	// Display a list of pages above and below the table 
-	var pagelinks string
-	for e := 0; e < len(*l)/shownTracks+1; e++ {
-		if pagenum == e {
-			pagelinks += "<button class=\"btn btn-primary\">" + strconv.Itoa(e) + "</button> "
-		} else {
-			pagelinks += "<a href=\"" + strconv.Itoa(e) + "\" class=\"btn\">" + strconv.Itoa(e) + "</a> "
-		}
-	}
-
-	body += "<p>" + prevnext + "</p>"
-	body += "<p>" + pagelinks + "</p>"
-
-	// Display $shownTracks elements
-	for i := pagenum * 100; i < pagenum*100+shownTracks && i < len(*l); i++ {
-		body += fmt.Sprintf(
-			"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
-			fmt.Sprintf(audio, (*l)[i].Path),
-			(*l)[i].Artist,
-			"<a href=\"content"+(*l)[i].Path+"\">"+(*l)[i].Title+"</a>",
-			(*l)[i].Album,
-			strconv.Itoa(int((*l)[i].Year)),
-		)
-	}
-
-	body += "</table>"
-	body += "<p>" + prevnext + "</p>"
-	body += "<p>" + pagelinks + "</p>"
-
-	p.Body = template.HTML(body)
-
-	renderTemplate(w, "index", p)
+// Constructor of HttpTrackServer. Needs an index.Index to work on.
+func NewHttpTrackServer(i *index.Index) *HttpTrackServer {
+	return &HttpTrackServer{index: i}
 }
 
 // Serving a (mp3)file.
@@ -172,11 +84,6 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 		log.Printf("Serving %s to %s", path, r.RemoteAddr)
 	}
 	http.ServeFile(w, r, path)
-}
-
-// Constructor of HttpTrackServer. Needs an index.Index to work on.
-func NewHttpTrackServer(i *index.Index) *HttpTrackServer {
-	return &HttpTrackServer{index: i}
 }
 
 // Starts http server on port 8080
