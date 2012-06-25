@@ -2,8 +2,10 @@
 
 echo -e "\nBuilding LESS files"
 
-TARGET="./web/assets/css"
-mkdir -p ${TARGET}
+TARGET="./website/assets/css"
+if [ ! -d ${TARGET} ]; then
+  mkdir -p ${TARGET}
+fi
 
 FILES=(
 	$(dirname ${0})"/bootstrap.less"

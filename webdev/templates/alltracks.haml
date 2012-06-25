@@ -1,0 +1,31 @@
+{{range .Pager}}
+{{if .Active}}
+%button.btn.btn-primary {{.Label}}
+{{else}}
+%a.btn(href="{{.Path}}") {{.Label}}
+{{end}}
+{{end}}
+
+%table.table.table-condensed
+  %thead
+    %tr
+      %th
+      %th Artist
+      %th Album
+      %th Title
+      %th year
+    {{range .Tracks}}
+    %tr
+      %td
+        %div.sm2-inline-list.ui360
+          %a(href="content{{.Path}}" title="Play")
+      %td
+        {{.Artist}}
+      %td
+        {{.Album}}
+      %td
+        %a(href="content{{.Path}}")
+          {{.Title}}
+      %td
+        {{.Year}}
+    {{end}}

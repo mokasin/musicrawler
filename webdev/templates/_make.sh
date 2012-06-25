@@ -2,8 +2,7 @@
 
 echo -e "\nBuilding HAML files..."
 
-TARGET="./web/templates"
-
+TARGET="./website/templates"
 if [ ! -d ${TARGET} ]; then
   mkdir -p ${TARGET}
 fi
