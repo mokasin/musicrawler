@@ -71,9 +71,8 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 	return &cacheGetAllTracks, err
 }
 
-// Return an array of all artist names
-func (i *Index) GetAllArtists() (*[]string, error) {
-	query := "select %s from Artist;"
+// Returns a string array for an arbitrary query (if it begins with "SELECT %s..."
+func (i *Index) QueryArtists(query string, args ...interface{}) (*[]string, error) {
 
 	var count int
 
@@ -83,7 +82,7 @@ func (i *Index) GetAllArtists() (*[]string, error) {
 		return nil, err
 	}
 
-	err = tx.QueryRow(fmt.Sprintf(query, "COUNT(*)")).Scan(&count)
+	err = tx.QueryRow(fmt.Sprintf(query, "COUNT(*)"), args...).Scan(&count)
 
 	if err != nil {
 		return nil, err
@@ -91,7 +90,7 @@ func (i *Index) GetAllArtists() (*[]string, error) {
 
 	artists := make([]string, count)
 
-	rows, err := tx.Query(fmt.Sprintf(query, "name"))
+	rows, err := tx.Query(fmt.Sprintf(query, "name"), args...)
 
 	if err != nil {
 		return nil, err
@@ -114,6 +113,20 @@ func (i *Index) GetAllArtists() (*[]string, error) {
 		c++
 	}
 	return &artists, err
+}
+
+// Returns an array of all artist names
+func (i *Index) GetAllArtists() (*[]string, error) {
+	query := "SELECT %s FROM Artist;"
+
+	return i.QueryArtists(query)
+}
+
+// Returns an array of all artist names
+func (i *Index) GetAllArtistsStartingWith(l string) (*[]string, error) {
+	query := "SELECT %s FROM Artist WHERE name LIKE ? || '%%' ORDER BY UPPER(name);"
+
+	return i.QueryArtists(query, l)
 }
 
 // Does a substring match on every non empty entry in tt.
