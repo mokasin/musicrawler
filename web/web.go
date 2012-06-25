@@ -34,7 +34,7 @@ func NewHttpTrackServer(i *index.Index) *HttpTrackServer {
 	return &HttpTrackServer{index: i}
 }
 
-// Serving a (mp3)file.
+// Serving a track file.
 func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Request) {
 	// validate path against database
 	valid := false

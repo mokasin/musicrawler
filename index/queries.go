@@ -78,8 +78,8 @@ func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
  FROM Track tr
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID
- WHERE tr.path LIKE '%' || ? || '%' AND tr.title LIKE '%' || ? || '%'
- AND ar.name LIKE '%' || ? || '%' AND al.name LIKE '%' || ? || '%'`
+ WHERE tr.path LIKE '%%' || ? || '%%' AND tr.title LIKE '%%' || ? || '%%'
+ AND ar.name LIKE ? || '%%' AND al.name LIKE ? || '%%'`
 
 	if tt.Year != 0 {
 		query += fmt.Sprintf(" AND tr.year=%d", tt.Year)
@@ -94,8 +94,9 @@ func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
 	}
 
 	var count int
-	queryCount := fmt.Sprintf(query, "COUNT(*)")
-	if err := tx.QueryRow(queryCount).Scan(&count); err != nil {
+	queryCount := fmt.Sprintf(query, "COUNT(path)")
+	if err := tx.QueryRow(queryCount, tt.Path, tt.Title,
+		tt.Artist, tt.Album).Scan(&count); err != nil {
 		return nil, err
 	}
 
