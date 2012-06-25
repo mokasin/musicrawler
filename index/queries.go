@@ -71,6 +71,44 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 	return &cacheGetAllTracks, err
 }
 
+// Return an array of all artist names
+func (i *Index) GetAllArtists() (*[]string, error) {
+	query := "select %s from Artist;"
+
+	var count int
+
+	tx, err := i.db.Begin()
+
+	err = tx.QueryRow(fmt.Sprintf(query, "COUNT(*)")).Scan(&count)
+
+	if err != nil {
+		return nil, err
+	}
+
+	artists := make([]string, count)
+
+	rows, err := tx.Query(fmt.Sprintf(query, "name"))
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	err = tx.Commit()
+
+	var artist string
+
+	c := 0
+	for rows.Next() {
+		if err = rows.Scan(&artist); err != nil {
+			return nil, err
+		}
+		artists[c] = artist
+		c++
+	}
+	return &artists, err
+}
+
 // Does a substring match on every non empty entry in tt.
 func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
 	query :=
