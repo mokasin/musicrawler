@@ -13,7 +13,8 @@
       %th Artist
       %th Album
       %th Title
-      %th year
+      %th Year
+      %th Length
     {{range .Tracks}}
     %tr
       %td
@@ -28,4 +29,6 @@
           {{.Title}}
       %td
         {{.Year}}
+      %td
+        {{.LengthString}}
     {{end}}

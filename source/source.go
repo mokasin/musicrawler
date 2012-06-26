@@ -16,6 +16,8 @@
 
 package source
 
+import "fmt"
+
 // Metadata for a track
 type TrackTags struct {
 	Path    string
@@ -28,6 +30,10 @@ type TrackTags struct {
 	Track   uint
 	Bitrate uint
 	Length  uint
+}
+
+func (tt *TrackTags) LengthString() string {
+	return fmt.Sprintf("%d:%02d", tt.Length/60, tt.Length%60)
 }
 
 // Basic information about a track.

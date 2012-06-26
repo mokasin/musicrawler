@@ -23,21 +23,23 @@ import (
 )
 
 func rows2TrackList(rows *sql.Rows, array *[]source.TrackTags) error {
-	var path, title, artist, album string
-	var year, track uint
+	var path, title, genre, artist, album string
+	var year, track, length uint
 
 	i := 0
 	for rows.Next() {
-		if err := rows.Scan(&path, &title, &year, &track, &artist, &album); err == nil {
+		if err := rows.Scan(&path, &artist, &album, &title,
+			&track, &length, &year, &genre); err == nil {
 			(*array)[i] = source.TrackTags{
 				Path:    path,
 				Title:   title,
 				Artist:  artist,
 				Album:   album,
 				Comment: "", // not yet in database
-				Genre:   "",
+				Genre:   genre,
 				Year:    year,
 				Track:   track,
+				Length:  length,
 			}
 		}
 		i++
@@ -70,10 +72,11 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 	cacheGetAllTracks := make([]source.TrackTags, count)
 
 	rows, err := tx.Query(
-		`SELECT tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name
- FROM Track tr
- JOIN Artist ar ON tr.trackartist = ar.ID
- JOIN Album  al ON tr.trackalbum  = al.ID;`)
+		`SELECT tr.path, ar.name, al.name, tr.title,
+		        tr.tracknumber, tr.length, tr.year, tr.genre
+ 		FROM Track tr
+ 		JOIN Artist ar ON tr.trackartist = ar.ID
+ 		JOIN Album  al ON tr.trackalbum  = al.ID;`)
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +98,12 @@ func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID
  WHERE tr.path LIKE '%%' || ? || '%%' AND tr.title LIKE '%%' || ? || '%%'
+ AND tr.gentre LIKE '%%' || ? || '%%'
  AND ar.name LIKE ? || '%%' AND al.name LIKE ? || '%%'`
 
+	if tt.Length != 0 {
+		query += fmt.Sprintf(" AND tr.length=%d", tt.Length)
+	}
 	if tt.Year != 0 {
 		query += fmt.Sprintf(" AND tr.year=%d", tt.Year)
 	}
@@ -119,9 +126,9 @@ func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
 	// allocating big enough array
 	tracks := make([]source.TrackTags, count)
 
-	querySelect := fmt.Sprintf(query,
-		"tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name")
-	rows, err := tx.Query(querySelect, tt.Path, tt.Title, tt.Artist, tt.Album)
+	querySelect := fmt.Sprintf(query, "tr.path, ar.name, al.name, tr.title,"+
+		"tr.tracknumber, tr.length, tr.year tr.genre")
+	rows, err := tx.Query(querySelect, tt.Path, tt.Title, tt.Genre, tt.Artist, tt.Album)
 	if err != nil {
 		return nil, err
 	}
