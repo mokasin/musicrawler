@@ -95,18 +95,12 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	artistmap, err = c.index.GetArtistMap()
 	c.Tracks = make([]source.TrackTags, 0)
 
-	fmt.Println(len(artistmap[pagestring]))
-
 	if len(artistmap[pagestring]) > 0 {
 		for i := 0; i < len(artistmap[pagestring]); i++ {
-			tracks, err = c.index.QueryTrack(source.TrackTags{Artist: artistmap[string(pagestring)][i]})
-			if i == 2 {
-				fmt.Println(tracks)
-			}
-			c.Tracks = concatTracks(c.Tracks, *tracks)
+			tracks, err = c.index.QueryTrack(source.TrackTags{Artist: artistmap[pagestring][i]})
+			c.Tracks = append(c.Tracks, *tracks...)
 		}
 	}
-	fmt.Println(len(c.Tracks))
 
 	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZÄOÜ0123456789. "
 
@@ -120,15 +114,4 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	renderInPage(w, "index", c.Tmpl("alltracks"), c, &Page{Title: "musicrawler"})
-}
-
-func concatTracks(t1 []source.TrackTags, t2 []source.TrackTags) []source.TrackTags {
-	temp := make([]source.TrackTags, len(t1)+len(t2))
-	for i := 1; i < len(t1); i++ {
-		temp[i] = t1[i]
-	}
-	for i := len(t1); i < len(t2); i++ {
-		temp[i] = t2[i]
-	}
-	return temp
 }
