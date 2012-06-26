@@ -22,7 +22,7 @@ import (
 	"musicrawler/index"
 	"musicrawler/source"
 	"net/http"
-	"strconv"
+	//	"strconv"
 )
 
 // Model of a simple pager.
@@ -71,7 +71,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	if _, err := fmt.Sscanf(r.RequestURI, "/%s", &pagestring); err != nil {
 		pagenum = 0
 	} else {
-		pagenum, err = strconv.Atoi(pagestring)
+		//		pagenum, err = strconv.Atoi(pagestring)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -83,22 +83,52 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// slicing the right tracks
-	min, max := pagenum*100, pagenum*100+shownTracks-1
-	if max >= len(*l) {
-		max = len(*l) - 1
-	}
+	//	min, max := pagenum*100, pagenum*100+shownTracks-1
+	//	if max >= len(*l) {
+	//		max = len(*l) - 1
+	//	}
 
 	// populating data
-	c.Tracks = (*l)[min:max]
+	var artistmap map[string][]string
+	//  var err error
+	var tracks *[]source.TrackTags
+	artistmap, err = c.index.GetArtistMap()
+	c.Tracks = make([]source.TrackTags, 0)
 
-	c.Pager = make([]pager, len(*l)/shownTracks+1)
-	for i := 0; i < len(c.Pager); i++ {
-		if i == pagenum {
+	fmt.Println(len(artistmap[pagestring]))
+
+	if len(artistmap[pagestring]) > 0 {
+		for i := 0; i < len(artistmap[pagestring]); i++ {
+			tracks, err = c.index.QueryTrack(source.TrackTags{Artist: artistmap[string(pagestring)][i]})
+			if i == 2 {
+				fmt.Println(tracks)
+			}
+			c.Tracks = concatTracks(c.Tracks, *tracks)
+		}
+	}
+	fmt.Println(len(c.Tracks))
+
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZÄOÜ0123456789. "
+
+	c.Pager = make([]pager, len(letters))
+	for i := 0; i < len(letters); i++ {
+		if string(letters[i]) == pagestring {
 			c.Pager[i].Active = true
 		}
-		c.Pager[i].Label = strconv.Itoa(i)
-		c.Pager[i].Path = strconv.Itoa(i)
+		c.Pager[i].Label = string(letters[i])
+		c.Pager[i].Path = string(letters[i])
 	}
 
 	renderInPage(w, "index", c.Tmpl("alltracks"), c, &Page{Title: "musicrawler"})
+}
+
+func concatTracks(t1 []source.TrackTags, t2 []source.TrackTags) []source.TrackTags {
+	temp := make([]source.TrackTags, len(t1)+len(t2))
+	for i := 1; i < len(t1); i++ {
+		temp[i] = t1[i]
+	}
+	for i := len(t1); i < len(t2); i++ {
+		temp[i] = t2[i]
+	}
+	return temp
 }

@@ -71,7 +71,7 @@ func (i *Index) GetAllTracks() (*[]source.TrackTags, error) {
 	return &cacheGetAllTracks, err
 }
 
-// Returns a string array for an arbitrary query (if it begins with "SELECT %s..."
+// Returns a string array for an arbitrary query (if it begins with "SELECT %s..."i)
 func (i *Index) QueryArtists(query string, args ...interface{}) (*[]string, error) {
 
 	var count int
