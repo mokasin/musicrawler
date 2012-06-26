@@ -133,6 +133,8 @@ func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 		tag.Album,
 		tag.Track,
 		tag.Year,
+		tag.Length,
+		tag.Genre,
 		track.Mtime(),
 		i.timestamp,
 	)
@@ -158,6 +160,8 @@ func (i *Index) updateTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 		tag.Album,
 		tag.Track,
 		tag.Year,
+		tag.Length,
+		tag.Genre,
 		track.Mtime(),
 		track.Path(),
 	)
@@ -170,40 +174,6 @@ const (
 	TRACK_UPDATE
 	TRACK_ADD
 )
-
-// Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
-// entries in Artist and Album table that are not referenced anymore in the
-// Track-table.
-//
-// Returns the number of deleted rows and an error.
-func (i *Index) DeleteDanglingEntries() (int64, error) {
-	stmt, err := i.db.Prepare("DELETE FROM Track WHERE dbmtime <> ?")
-	if err != nil {
-		return 0, err
-	}
-	defer stmt.Close()
-
-	r, err := stmt.Exec(i.timestamp)
-	deletedTracks, _ := r.RowsAffected()
-	if err != nil {
-		return deletedTracks, err
-	}
-
-	if _, err := i.db.Exec("DELETE FROM Artist WHERE ID IN " +
-		"(SELECT Artist.ID FROM Artist LEFT JOIN Track ON " +
-		"Artist.ID = Track.trackartist WHERE Track.trackartist " +
-		"IS NULL);"); err != nil {
-		return deletedTracks, err
-	}
-	if _, err := i.db.Exec("DELETE FROM Album WHERE ID IN " +
-		"(SELECT Album.ID FROM Album LEFT JOIN Track ON " +
-		"Album.ID = Track.trackalbum WHERE Track.trackalbum " +
-		"IS NULL);"); err != nil {
-		return deletedTracks, err
-	}
-
-	return deletedTracks, nil
-}
 
 // Holds information of how the track at path was handeled. If the transaction
 // was successfully err is nil.
@@ -340,4 +310,41 @@ func (i *Index) update(tracks <-chan source.TrackInfo,
 
 	close(status)
 	return &UpdateResult{Err: nil}
+}
+
+// Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
+// entries in Artist and Album table that are not referenced anymore in the
+// Track-table.
+//
+// Returns the number of deleted rows and an error.
+func (i *Index) DeleteDanglingEntries() (int64, error) {
+	tx, err := i.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+
+	r, err := tx.Exec("DELETE FROM Track WHERE dbmtime <> ?", i.timestamp)
+	deletedTracks, _ := r.RowsAffected()
+	if err != nil {
+		return deletedTracks, err
+	}
+
+	if _, err := tx.Exec("DELETE FROM Artist WHERE ID IN " +
+		"(SELECT Artist.ID FROM Artist LEFT JOIN Track ON " +
+		"Artist.ID = Track.trackartist WHERE Track.trackartist " +
+		"IS NULL);"); err != nil {
+		return deletedTracks, err
+	}
+	if _, err := tx.Exec("DELETE FROM Album WHERE ID IN " +
+		"(SELECT Album.ID FROM Album LEFT JOIN Track ON " +
+		"Album.ID = Track.trackalbum WHERE Track.trackalbum " +
+		"IS NULL);"); err != nil {
+		return deletedTracks, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return deletedTracks, nil
 }
