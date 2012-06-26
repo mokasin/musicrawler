@@ -129,6 +129,26 @@ func (i *Index) GetAllArtistsStartingWith(l string) (*[]string, error) {
 	return i.QueryArtists(query, l)
 }
 
+// Returns a map of all artists for each starting letter
+func (i *Index) GetArtistMap() (map[string][]string, error) {
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZÄOÜ0123456789. "
+
+	var artists *[]string
+	var err error
+	m := make(map[string][]string)
+
+	for c := 0; c < len(letters); c++ {
+		artists, err = i.GetAllArtistsStartingWith(string(letters[c]))
+		if err != nil {
+			return nil, err
+		}
+		m[string(letters[c])] = *artists
+	}
+
+	return m, err
+
+}
+
 // Does a substring match on every non empty entry in tt.
 func (i *Index) QueryTrack(tt source.TrackTags) (*[]source.TrackTags, error) {
 	query :=
