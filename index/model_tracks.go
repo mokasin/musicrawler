@@ -26,35 +26,38 @@ type tracksCache struct {
 	ctime int64
 }
 
-// Model of Tracks
+// Tracks represents the model of tracks in database.
 type Tracks struct {
 	index    *Index
 	allCache tracksCache
 }
 
+// Constructor returns instance of Tracks.
 func NewTracks(i *Index) *Tracks {
 	return &Tracks{index: i}
 }
 
-func (t *Tracks) Query(query string, args ...interface{}) (*[]source.TrackTags, error) {
-	const columns = "tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name"
-	sql_count := fmt.Sprintf(query, "COUNT(*)")
-	sql_query := fmt.Sprintf(query, columns)
+// columns that get queried
+const columns = "tr.path, tr.title, tr.year, tr.tracknumber, ar.name, al.name"
 
+// Query does a SQL-query query with arguments args. query must be of the form
+// 		SELECT %s FROM Tracks ...
+// '%' in the query has to be escaped by '%%' (see fmt package)
+func (t *Tracks) Query(query string, args ...interface{}) (*[]source.TrackTags, error) {
 	tx, err := t.index.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	var count int
-	if err := tx.QueryRow(sql_count, args...).Scan(&count); err != nil {
+	if err := tx.QueryRow(fmt.Sprintf(query, "COUNT(*)"), args...).Scan(&count); err != nil {
 		return nil, err
 	}
 
 	// allocating big enough array
 	result := make([]source.TrackTags, count)
 
-	rows, err := tx.Query(sql_query, args...)
+	rows, err := tx.Query(fmt.Sprintf(query, columns), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +96,8 @@ const tracks_sql_all = `SELECT %s
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID;`
 
+// All returns a pointer to an array of source.TrackTags for all tracks in the
+// database
 func (t *Tracks) All() (*[]source.TrackTags, error) {
 	if t.allCache.data != nil && t.allCache.ctime == t.index.timestamp {
 		return t.allCache.data, nil
@@ -108,6 +113,8 @@ const track_sql_bytag = `SELECT %s
  WHERE tr.path LIKE '%%' || ? || '%%' AND tr.title LIKE '%%' || ? || '%%'
  AND ar.name LIKE ? || '%%' AND al.name LIKE ? || '%%'`
 
+// ByTag return a pointer to an array of source.TrackTags for tracks filtered
+// constrained by entries in tt. Empty filds of tt are considered as wildcards.
 func (t *Tracks) ByTag(tt source.TrackTags) (*[]source.TrackTags, error) {
 	query := track_sql_bytag
 
