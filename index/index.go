@@ -28,6 +28,7 @@ type Index struct {
 	Filename  string
 	db        *sql.DB
 	timestamp int64
+	Tracks    *Tracks
 }
 
 // Creates a new Index struct and connects it to the database at filename.
@@ -57,6 +58,9 @@ func NewIndex(filename string) (*Index, error) {
 			return nil, err
 		}
 	}
+
+	// initializing members
+	i.Tracks = NewTracks(i)
 
 	return i, nil
 }

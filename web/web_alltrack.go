@@ -59,7 +59,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	// Only show that many tracks on one page
 	const shownTracks = 100
 
-	l, err := c.index.GetAllTracks()
+	l, err := c.index.Tracks.All()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
