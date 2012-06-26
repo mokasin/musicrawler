@@ -131,7 +131,7 @@ func (i *Index) GetAllArtistsStartingWith(l string) (*[]string, error) {
 
 // Returns a map of all artists for each starting letter
 func (i *Index) GetArtistMap() (map[string][]string, error) {
-	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZÄOÜ0123456789. "
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789. "
 
 	var artists *[]string
 	var err error

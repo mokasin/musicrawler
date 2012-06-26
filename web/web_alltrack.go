@@ -102,7 +102,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZÄOÜ0123456789. "
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789. "
 
 	c.Pager = make([]pager, len(letters))
 	for i := 0; i < len(letters); i++ {
