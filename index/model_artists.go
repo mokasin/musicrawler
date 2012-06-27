@@ -18,29 +18,19 @@ package index
 
 import "fmt"
 
-type artistsCache struct {
-	data  *[]string
-	ctime int64
-}
-
-type lettersCache struct {
-	data  string
-	ctime int64
-}
-
 // Artists represents the model of tracks in database.
 type Artists struct {
-	index        *Index
-	lettersCache lettersCache
-	allCache     artistsCache
-	letterCache  map[rune]artistsCache
+	index            *Index
+	lettersCache     cache
+	allCache         cache
+	firstLetterCache map[rune]cache
 }
 
 // Constructor returns intstance of Artists.
 func NewArtists(i *Index) *Artists {
 	return &Artists{
-		index:       i,
-		letterCache: make(map[rune]artistsCache),
+		index:            i,
+		firstLetterCache: make(map[rune]cache),
 	}
 }
 
@@ -59,7 +49,7 @@ func (a *Artists) QueryName(query string, args ...interface{}) (*[]string, error
 
 	artists := make([]string, count)
 
-	rows, err := tx.QueryName(fmt.Sprintf(query, "name"), args...)
+	rows, err := tx.Query(fmt.Sprintf(query, "name"), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +86,12 @@ func (a *Artists) All() (*[]string, error) {
 		a.allCache.ctime = a.index.Timestamp()
 	}
 
-	return a.allCache.data, nil
+	val, ok := a.allCache.data.(*[]string)
+	if !ok {
+		return a.QueryName(artists_sql_all)
+	}
+
+	return val, nil
 }
 
 const artists_sql_startingwith = "SELECT %s FROM Artist WHERE name LIKE ? || '%%' ORDER BY UPPER(name);"
@@ -109,53 +104,66 @@ func (a *Artists) ByName(name string) (*[]string, error) {
 // ByFirstLetter returns a pointer to an array containg all artists which names
 // starting with letter.
 func (a *Artists) ByFirstLetter(letter rune) (*[]string, error) {
-	if a.letterCache[letter].data == nil ||
-		a.letterCache[letter].ctime != a.index.Timestamp() {
+	if a.firstLetterCache[letter].data == nil ||
+		a.firstLetterCache[letter].ctime != a.index.Timestamp() {
+
 		data, err := a.ByName(string(letter))
 		if err != nil {
 			return nil, err
 		}
-		a.letterCache[letter] = artistsCache{
+
+		a.firstLetterCache[letter] = cache{
 			data:  data,
 			ctime: a.index.Timestamp(),
 		}
 	}
 
-	return a.letterCache[letter].data, nil
+	val, ok := a.firstLetterCache[letter].data.(*[]string)
+	if !ok {
+		return a.ByName(string(letter))
+	}
+
+	return val, nil
 }
 
 const artists_sql_firstletters = "SELECT DISTINCT %s FROM Artist ORDER BY UPPER(name)"
 
-// Letters returns a string of the first letters of the artist names.
-func (a *Artists) Letters() (string, error) {
-	if a.lettersCache.data == "" || a.lettersCache.ctime != a.index.Timestamp() {
-		rows, err := a.index.db.QueryName(
-			fmt.Sprintf(artists_sql_firstletters, "SUBSTR(name, 1, 1)"))
-		if err != nil {
+// queryLetters reads leading letters of artists name from database
+func (a *Artists) queryLetters() (letters string, err error) {
+	rows, err := a.index.db.Query(
+		fmt.Sprintf(artists_sql_firstletters, "SUBSTR(name, 1, 1)"))
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var l string
+	c := 0
+	for rows.Next() {
+		if err = rows.Scan(&l); err != nil {
 			return "", err
 		}
-		defer rows.Close()
+		letters += l
+		c++
+	}
 
-		var l string
-		a.lettersCache.data = ""
+	return letters, rows.Err()
+}
 
-		c := 0
-		for rows.Next() {
-			if err = rows.Scan(&l); err != nil {
-				return "", err
-			}
-			a.lettersCache.data += l
-			c++
-		}
-
-		if rows.Err() != nil {
-			return "", rows.Err()
-		}
-
+// Letters returns a string of the first letters of the artist names.
+func (a *Artists) Letters() (string, error) {
+	var err error
+	if a.lettersCache.data == "" || a.lettersCache.ctime != a.index.Timestamp() {
+		a.lettersCache.data, err = a.queryLetters()
 		a.lettersCache.ctime = a.index.Timestamp()
 	}
 
-	return a.lettersCache.data, nil
+	val, ok := a.lettersCache.data.(string)
+	if !ok {
+		return a.queryLetters()
+	}
+
+	return val, err
 }
 
 // Returns a map of all artists for each starting letter

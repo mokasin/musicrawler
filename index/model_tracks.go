@@ -21,15 +21,10 @@ import (
 	"musicrawler/source"
 )
 
-type tracksCache struct {
-	data  *[]source.TrackTags
-	ctime int64
-}
-
 // Tracks represents the model of tracks in database.
 type Tracks struct {
 	index    *Index
-	allCache tracksCache
+	allCache cache
 }
 
 // Constructor returns instance of Tracks.
@@ -109,7 +104,12 @@ func (t *Tracks) All() (*[]source.TrackTags, error) {
 		t.allCache.ctime = t.index.Timestamp()
 	}
 
-	return t.allCache.data, nil
+	val, ok := t.allCache.data.(*[]source.TrackTags)
+	if !ok {
+		return t.Query(tracks_sql_all)
+	}
+
+	return val, nil
 }
 
 const track_sql_bytag = `SELECT %s
