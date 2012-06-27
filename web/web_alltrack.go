@@ -106,7 +106,12 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	letters := c.index.Artists.Letters()
+	letters, err := c.index.Artists.Letters()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	c.Pager = make([]pager, len(letters))
 	for i := 0; i < len(letters); i++ {
 		if string(letters[i]) == pagestring {
