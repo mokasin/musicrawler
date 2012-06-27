@@ -70,6 +70,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	// parse URL for pagenumber and validate
 	if _, err := fmt.Sscanf(r.RequestURI, "/%s", &pagestring); err != nil {
 		pagenum = 0
+		pagestring = "A"
 	} else {
 		//		pagenum, err = strconv.Atoi(pagestring)
 		if err != nil {

@@ -1,12 +1,15 @@
 Todo
 ====
 
-* implement http server
-* allow database queries and return results as json
+* JSON
 * write tests
 
-index.go
---------
+http server
+-----------
+* hide actual path
+
+index
+-----
 * use FTS (Full Text Search) to accelerate wildcard search queries
 
 Longterm
