@@ -17,21 +17,39 @@
 package web
 
 import (
+	"fmt"
 	"musicrawler/index"
 	"net/http"
+	"time"
 )
 
 // FIXME: needs an absolute path so musicrawler can be run anywhere
 const websitePath = "website/"
 const websiteAssetsPath = websitePath + "assets/"
 
+type Status struct {
+	Msg       string
+	Err       error
+	Timestamp time.Time
+}
+
 type HttpTrackServer struct {
-	index *index.Index
+	index  *index.Index
+	status chan<- *Status
 }
 
 // Constructor of HttpTrackServer. Needs an index.Index to work on.
-func NewHttpTrackServer(i *index.Index) *HttpTrackServer {
-	return &HttpTrackServer{index: i}
+func NewHttpTrackServer(i *index.Index, status chan<- *Status) *HttpTrackServer {
+	return &HttpTrackServer{index: i, status: status}
+}
+
+// msg sends Status to status channel.
+func (hts *HttpTrackServer) msg(msg string, err error) {
+	hts.status <- &Status{
+		Msg:       msg,
+		Err:       err,
+		Timestamp: time.Now(),
+	}
 }
 
 // Serving a track file.
@@ -56,10 +74,12 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 	}
 
 	http.ServeFile(w, r, path)
+
+	hts.msg(fmt.Sprintf("Serving \"%s\" to %s", path, r.RemoteAddr), nil)
 }
 
 // Starts http server on port 8080 and set routes.
-func (hts *HttpTrackServer) StartListing() error {
+func (hts *HttpTrackServer) StartListing() {
 	c_allTracks := NewControllerAllTracks(hts.index)
 
 	// methods are no expression -> closure
@@ -74,5 +94,6 @@ func (hts *HttpTrackServer) StartListing() error {
 		hts.handlerFileContent(w, r)
 	})
 
-	return http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", nil)
+	hts.msg("", err)
 }

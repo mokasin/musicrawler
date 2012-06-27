@@ -31,6 +31,8 @@ var supportedFileTypes []string = []string{"mp3", "ogg"}
 func updateTracks() {
 	var added, updated int
 
+	actionMsg := []string{"-", "M", "A"}
+
 	statusChannel := make(chan *index.UpdateStatus, 100)
 	resultChannel := make(chan error)
 
@@ -42,11 +44,12 @@ func updateTracks() {
 	for status := range statusChannel {
 		counter++
 		if status.Err != nil {
-			fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
-				status.Action, status.Path, status.Err)
+			fmt.Printf("%6d: %s, INDEX ERROR (%s): %v\n", counter,
+				actionMsg[status.Action], status.Path, status.Err)
 		} else {
-			if *verbosity {
-				fmt.Printf("%6d: %d, %s\n", counter, status.Action, status.Path)
+			if *vverbosity {
+				fmt.Printf("%6d: %s, %s\n", counter,
+					actionMsg[status.Action], status.Path)
 			}
 			switch status.Action {
 			case index.TRACK_UPDATE:
@@ -69,6 +72,7 @@ func updateTracks() {
 }
 
 var verbosity = flag.Bool("v", false, "be verbose")
+var vverbosity = flag.Bool("vv", false, "be very verbose")
 var sourceList *SourceList
 
 func main() {
@@ -125,8 +129,18 @@ func main() {
 
 	fmt.Println("-> Starting webserver...\n")
 
-	httptrackserver := web.NewHttpTrackServer(index)
-	if err := httptrackserver.StartListing(); err != nil {
-		fmt.Println("ERROR:", err)
+	status := make(chan *web.Status, 1000)
+
+	hts := web.NewHttpTrackServer(index, status)
+	go hts.StartListing()
+
+	for s := range status {
+		if *verbosity {
+			if s.Err != nil {
+				fmt.Printf("%v: SERVER ERROR: %v\n", s.Timestamp, s.Err)
+			} else {
+				fmt.Printf("%v: %s\n", s.Timestamp, s.Msg)
+			}
+		}
 	}
 }
