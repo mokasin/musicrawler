@@ -39,7 +39,7 @@ func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Re
 	// validate path against database
 	valid := false
 	path := r.URL.Path[8:]
-	tracks, err := hts.index.GetAllTracks()
+	tracks, err := hts.index.Tracks.All()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
