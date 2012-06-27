@@ -13,6 +13,7 @@
       %th Artist
       %th Album
       %th Title
+      %th Track
       %th Year
       %th Length
     {{range .Tracks}}
@@ -27,6 +28,8 @@
       %td
         %a(href="content{{.Path}}")
           {{.Title}}
+      %td
+        {{.Track}}
       %td
         {{.Year}}
       %td
