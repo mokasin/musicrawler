@@ -6,7 +6,7 @@
 {{end}}
 {{end}}
 
-%table.table.table-condensed
+%table.table.table-condensed.table-striped
   %thead
     %tr
       %th
@@ -16,22 +16,23 @@
       %th Track
       %th Year
       %th Length
-    {{range .Tracks}}
-    %tr
-      %td
-        %div.sm2-inline-list.ui360
-          %a(href="content{{.Path}}" title="Play")
-      %td
-        {{.Artist}}
-      %td
-        {{.Album}}
-      %td
-        %a(href="content{{.Path}}")
-          {{.Title}}
-      %td
-        {{.Track}}
-      %td
-        {{.Year}}
-      %td
-        {{.LengthString}}
-    {{end}}
+    %tbody
+      {{range .Tracks}}
+      %tr
+        %td
+          %div.sm2-inline-list.ui360
+            %a(href="content{{.Path}}" title="Play")
+        %td
+          {{.Artist}}
+        %td
+          {{.Album}}
+        %td
+          %a(href="content{{.Path}}")
+            {{.Title}}
+        %td
+          {{.Track}}
+        %td
+          {{.Year}}
+        %td
+          {{.LengthString}}
+      {{end}}
