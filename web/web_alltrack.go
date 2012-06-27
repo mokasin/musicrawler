@@ -56,7 +56,7 @@ func (c *controllerAllTracks) Tmpl(name string) *template.Template {
 
 // Shows unsorted list of all tracks in database.
 func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
-	// Only show that many tracks on one page
+	// Only show tha) many tracks on one page
 	const shownTracks = 100
 
 	l, err := c.index.Tracks.All()
@@ -93,6 +93,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	//  var err error
 	var tracks *[]source.TrackTags
 	artistmap, err = c.index.Artists.FirstLetterMap()
+	c.Tracks = make([]source.TrackTags, 0)
 
 	if len(artistmap[pagestring]) > 0 {
 		for i := 0; i < len(artistmap[pagestring]); i++ {
@@ -101,7 +102,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			c.Tracks = *tracks
+			c.Tracks = append(c.Tracks, *tracks...)
 		}
 	}
 
