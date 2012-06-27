@@ -92,18 +92,20 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 	var artistmap map[string][]string
 	//  var err error
 	var tracks *[]source.TrackTags
-	artistmap, err = c.index.GetArtistMap()
-	c.Tracks = make([]source.TrackTags, 0)
+	artistmap, err = c.index.Artists.FirstLetterMap()
 
 	if len(artistmap[pagestring]) > 0 {
 		for i := 0; i < len(artistmap[pagestring]); i++ {
-			tracks, err = c.index.QueryTrack(source.TrackTags{Artist: artistmap[pagestring][i]})
-			c.Tracks = append(c.Tracks, *tracks...)
+			tracks, err = c.index.Tracks.ByTag(source.TrackTags{Artist: artistmap[pagestring][i]})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			c.Tracks = *tracks
 		}
 	}
 
-	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789. "
-
+	letters := c.index.Artists.Letters()
 	c.Pager = make([]pager, len(letters))
 	for i := 0; i < len(letters); i++ {
 		if string(letters[i]) == pagestring {

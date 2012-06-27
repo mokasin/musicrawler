@@ -100,11 +100,16 @@ const tracks_sql_all = `SELECT %s
 // All returns a pointer to an array of source.TrackTags for all tracks in the
 // database
 func (t *Tracks) All() (*[]source.TrackTags, error) {
-	if t.allCache.data != nil && t.allCache.ctime == t.index.timestamp {
-		return t.allCache.data, nil
+	if t.allCache.data == nil || t.allCache.ctime != t.index.Timestamp() {
+		var err error
+		t.allCache.data, err = t.Query(tracks_sql_all)
+		if err != nil {
+			return nil, err
+		}
+		t.allCache.ctime = t.index.Timestamp()
 	}
 
-	return t.Query(tracks_sql_all)
+	return t.allCache.data, nil
 }
 
 const track_sql_bytag = `SELECT %s
@@ -130,5 +135,5 @@ func (t *Tracks) ByTag(tt source.TrackTags) (*[]source.TrackTags, error) {
 		query += fmt.Sprintf(" AND tr.tracknumber=%d", tt.Track)
 	}
 
-	return t.Query(query)
+	return t.Query(query, tt.Path, tt.Title, tt.Genre, tt.Artist, tt.Album)
 }
