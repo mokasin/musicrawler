@@ -5,27 +5,28 @@
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  hts program is distributed in the hope that it will be useful,
+ *  h program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with hts program. If not, see <http://www.gnu.org/licenses/>.
+ *  along with h program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 package web
 
 import (
-	"fmt"
 	"musicrawler/index"
 	"net/http"
 	"time"
 )
 
-// FIXME: needs an absolute path so musicrawler can be run anywhere
+// FIXME to ungeneric
 const websitePath = "website/"
 const websiteAssetsPath = websitePath + "assets/"
+
+var statusChannel chan<- *Status
 
 type Status struct {
 	Msg       string
@@ -33,67 +34,49 @@ type Status struct {
 	Timestamp time.Time
 }
 
-type HttpTrackServer struct {
-	index  *index.Index
-	status chan<- *Status
-}
-
-// Constructor of HttpTrackServer. Needs an index.Index to work on.
-func NewHttpTrackServer(i *index.Index, status chan<- *Status) *HttpTrackServer {
-	return &HttpTrackServer{index: i, status: status}
-}
-
 // msg sends Status to status channel.
-func (hts *HttpTrackServer) msg(msg string, err error) {
-	hts.status <- &Status{
+func msg(msg string, err error) {
+	statusChannel <- &Status{
 		Msg:       msg,
 		Err:       err,
 		Timestamp: time.Now(),
 	}
 }
 
-// Serving a track file.
-func (hts *HttpTrackServer) handlerFileContent(w http.ResponseWriter, r *http.Request) {
-	// validate path against database
-	valid := false
-	path := r.URL.Path[8:]
-	tracks, err := hts.index.Tracks.All()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	for _, val := range *tracks {
-		if path == val.Path {
-			valid = true
-			break
-		}
-	}
+// Manages a HTTP server to serve audio files saved in database. 
+type HTTPTrackServer struct {
+	index  *index.Index
+	router *Router
+}
 
-	if !valid {
-		http.NotFound(w, r)
-		return
-	}
+// Constructor of HTTPTrackServer. Needs an index.Index to work on.
+func NewHTTPTrackServer(i *index.Index, stat chan<- *Status) *HTTPTrackServer {
+	// set global variable
+	statusChannel = stat
 
-	http.ServeFile(w, r, path)
-
-	hts.msg(fmt.Sprintf("Serving \"%s\" to %s", path, r.RemoteAddr), nil)
+	return &HTTPTrackServer{index: i, router: NewRouter()}
 }
 
 // Starts http server on port 8080 and set routes.
-func (hts *HttpTrackServer) StartListing() {
-	c_allTracks := NewControllerAllTracks(hts.index)
+func (h *HTTPTrackServer) StartListing() {
+	msg("Start listening.", nil)
 
-	// methods are no expression -> closure
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		c_allTracks.Handler(w, r)
-	})
+	// Adding routes
 
+	h.router.AddRoute("artists", NewControllerArtists(h.index))
+	h.router.AddRoute("content", NewControllerContent(h.index))
+
+	// Just serve the assets.
 	http.Handle("/assets/",
 		http.StripPrefix("/assets/", http.FileServer(http.Dir(websiteAssetsPath))))
 
-	http.HandleFunc("/content/", func(w http.ResponseWriter, r *http.Request) {
-		hts.handlerFileContent(w, r)
+	// let the router handle the rest
+	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		h.router.routeHandler(w, req)
 	})
 
+	// and start the server.
 	err := http.ListenAndServe(":8080", nil)
-	hts.msg("", err)
+
+	msg("", err)
 }

@@ -133,8 +133,8 @@ func main() {
 
 	status := make(chan *web.Status, 1000)
 
-	hts := web.NewHttpTrackServer(index, status)
-	go hts.StartListing()
+	h := web.NewHTTPTrackServer(index, status)
+	go h.StartListing()
 
 	fmt.Println("   ...Listening on :8080")
 
@@ -142,6 +142,7 @@ func main() {
 		if *verbosity {
 			if s.Err != nil {
 				fmt.Printf("%v: SERVER ERROR: %v\n", s.Timestamp, s.Err)
+				break
 			} else {
 				fmt.Printf("%v: %s\n", s.Timestamp, s.Msg)
 			}
