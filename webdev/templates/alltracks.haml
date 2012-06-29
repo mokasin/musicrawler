@@ -1,20 +1,26 @@
-{{range .Pager}}
-{{if .Active}}
-%button.btn.btn-primary {{.Label}}
-{{else}}
-%a.btn(href="{{.Path}}") {{.Label}}
-{{end}}
-{{end}}
+%div.pagination.pagination-centered(style="margin-bottom: 0.5em")
+  %ul
+    {{range .Pager}}
+    {{if .Active}}
+    %li.active
+      %a(href="#") {{.Label}}
+    {{else}}
+    %li
+      %a(href="{{.Path}}") {{.Label}}
+    {{end}}
+    {{end}}
 
-%table.table.table-condensed
+%table.table.table-condensed.table-striped
   %thead
     %tr
       %th
       %th Artist
       %th Album
       %th Title
+      %th Track
       %th Year
       %th Length
+  %tbody
     {{range .Tracks}}
     %tr
       %td
@@ -27,6 +33,8 @@
       %td
         %a(href="content{{.Path}}")
           {{.Title}}
+      %td
+        {{.Track}}
       %td
         {{.Year}}
       %td

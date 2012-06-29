@@ -26,10 +26,10 @@ type TrackTags struct {
 	Album   string
 	Comment string
 	Genre   string
-	Year    uint
-	Track   uint
-	Bitrate uint
-	Length  uint
+	Year    int
+	Track   int
+	Bitrate int
+	Length  int
 }
 
 func (tt *TrackTags) LengthString() string {

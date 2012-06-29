@@ -63,7 +63,7 @@ func (t *Tracks) Query(query string, args ...interface{}) (*[]source.TrackTags, 
 	}
 
 	var path, title, artist, album, genre string
-	var year, track, length uint
+	var year, track, length int
 
 	i := 0
 	for rows.Next() {
@@ -116,9 +116,11 @@ const track_sql_bytag = `SELECT %s
  FROM Track tr
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID
- WHERE tr.path LIKE '%%' || ? || '%%' AND tr.title LIKE '%%' || ? || '%%'
- AND tr.genre LIKE '%%' || ? || '%%'
- AND ar.name LIKE ? || '%%' AND al.name LIKE ? || '%%'`
+ WHERE UPPER(tr.path) LIKE UPPER('%%' || ? || '%%')
+ AND UPPER(tr.title) LIKE UPPER('%%' || ? || '%%')
+ AND UPPER(tr.genre) LIKE UPPER('%%' || ? || '%%')
+ AND UPPER(ar.name) LIKE UPPER(? || '%%')
+ AND UPPER(al.name) LIKE UPPER(? || '%%')`
 
 // ByTag return a pointer to an array of source.TrackTags for tracks filtered
 // constrained by entries in tt. Empty filds of tt are considered as wildcards.

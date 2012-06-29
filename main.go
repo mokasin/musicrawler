@@ -29,7 +29,9 @@ import (
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
 func updateTracks() {
-	var added, updated int
+	var added, updated, errors int
+
+	actionMsg := []string{"-", "M", "A"}
 
 	statusChannel := make(chan *index.UpdateStatus, 100)
 	resultChannel := make(chan error)
@@ -41,12 +43,14 @@ func updateTracks() {
 	counter := 0
 	for status := range statusChannel {
 		counter++
-		if status.Err != nil {
-			fmt.Printf("%d: %d, INDEX ERROR (%s): %v\n", counter,
-				status.Action, status.Path, status.Err)
-		} else {
-			if *verbosity {
-				fmt.Printf("%6d: %d, %s\n", counter, status.Action, status.Path)
+		if *vverbosity {
+			if status.Err != nil {
+				fmt.Printf("%6d: %s, INDEX ERROR (%s): %v\n", counter,
+					actionMsg[status.Action], status.Path, status.Err)
+				errors++
+			} else {
+				fmt.Printf("%6d: %s, %s\n", counter,
+					actionMsg[status.Action], status.Path)
 			}
 			switch status.Action {
 			case index.TRACK_UPDATE:
@@ -63,12 +67,14 @@ func updateTracks() {
 	}
 	deltaTime := time.Since(timeStart).Seconds()
 
-	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
-	fmt.Printf("Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
+	fmt.Printf("   Added: %d\tUpdated: %d\tErrors: %d\n",
+		added, updated, errors)
+	fmt.Printf("   Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
 		deltaTime/float64(added+updated)*1000)
 }
 
 var verbosity = flag.Bool("v", false, "be verbose")
+var vverbosity = flag.Bool("vv", false, "be very verbose")
 var sourceList *SourceList
 
 func main() {
@@ -125,8 +131,20 @@ func main() {
 
 	fmt.Println("-> Starting webserver...\n")
 
-	httptrackserver := web.NewHttpTrackServer(index)
-	if err := httptrackserver.StartListing(); err != nil {
-		fmt.Println("ERROR:", err)
+	status := make(chan *web.Status, 1000)
+
+	hts := web.NewHttpTrackServer(index, status)
+	go hts.StartListing()
+
+	fmt.Println("   ...Listening on :8080")
+
+	for s := range status {
+		if *verbosity {
+			if s.Err != nil {
+				fmt.Printf("%v: SERVER ERROR: %v\n", s.Timestamp, s.Err)
+			} else {
+				fmt.Printf("%v: %s\n", s.Timestamp, s.Msg)
+			}
+		}
 	}
 }
