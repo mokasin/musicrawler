@@ -92,8 +92,7 @@ const tracks_sql_all = `SELECT %s
  JOIN Artist ar ON tr.trackartist = ar.ID
  JOIN Album  al ON tr.trackalbum  = al.ID;`
 
-// All returns a pointer to an array of source.TrackTags for all tracks in the
-// database
+// All returns all tracks in the database.
 func (t *Tracks) All() (*[]source.TrackTags, error) {
 	if t.allCache.data == nil || t.allCache.ctime != t.index.Timestamp() {
 		var err error
@@ -122,8 +121,8 @@ const track_sql_bytag = `SELECT %s
  AND UPPER(ar.name) LIKE UPPER(? || '%%')
  AND UPPER(al.name) LIKE UPPER(? || '%%')`
 
-// ByTag return a pointer to an array of source.TrackTags for tracks filtered
-// constrained by entries in tt. Empty filds of tt are considered as wildcards.
+// ByTag return tracks constrained by entries in tt. Empty filds of tt are
+// considered as wildcards.
 func (t *Tracks) ByTag(tt source.TrackTags) (*[]source.TrackTags, error) {
 	query := track_sql_bytag
 
@@ -138,4 +137,17 @@ func (t *Tracks) ByTag(tt source.TrackTags) (*[]source.TrackTags, error) {
 	}
 
 	return t.Query(query, tt.Path, tt.Title, tt.Genre, tt.Artist, tt.Album)
+}
+
+const tracks_sql_artist = `SELECT %s
+ FROM Track tr
+ JOIN Artist ar ON tr.trackartist = ar.ID
+ JOIN Album  al ON tr.trackalbum  = al.ID
+ WHERE ar.name=?;`
+
+// ByArtist returns a list of tracks from artist artist.
+//
+// It does an exact match on the artist name.
+func (t *Tracks) ByArtist(artist string) (*[]source.TrackTags, error) {
+	return t.Query(tracks_sql_artist, artist)
 }

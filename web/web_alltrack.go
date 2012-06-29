@@ -83,12 +83,6 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// slicing the right tracks
-	//	min, max := pagenum*100, pagenum*100+shownTracks-1
-	//	if max >= len(*l) {
-	//		max = len(*l) - 1
-	//	}
-
 	// populating data
 	var artistmap map[string][]string
 	//  var err error
@@ -98,7 +92,7 @@ func (c *controllerAllTracks) Handler(w http.ResponseWriter, r *http.Request) {
 
 	if len(artistmap[pagestring]) > 0 {
 		for i := 0; i < len(artistmap[pagestring]); i++ {
-			tracks, err = c.index.Tracks.ByTag(source.TrackTags{Artist: artistmap[pagestring][i]})
+			tracks, err = c.index.Tracks.ByArtist(artistmap[pagestring][i])
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
