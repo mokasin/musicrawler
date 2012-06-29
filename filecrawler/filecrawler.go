@@ -40,7 +40,7 @@ func (fi *FileInfo) Mtime() int64 {
 
 // Reads tags (id3, vorbis,…) from file
 func (fi *FileInfo) Tags() (*source.TrackTags, error) {
-	tag, err := gotaglib.NewTaggedFile(fi.filename)
+	tag, err := gotaglib.Read(fi.filename)
 	if err != nil {
 		return nil, err
 	}

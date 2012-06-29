@@ -29,7 +29,7 @@ import (
 var supportedFileTypes []string = []string{"mp3", "ogg"}
 
 func updateTracks() {
-	var added, updated int
+	var added, updated, errors int
 
 	actionMsg := []string{"-", "M", "A"}
 
@@ -43,11 +43,12 @@ func updateTracks() {
 	counter := 0
 	for status := range statusChannel {
 		counter++
-		if status.Err != nil {
-			fmt.Printf("%6d: %s, INDEX ERROR (%s): %v\n", counter,
-				actionMsg[status.Action], status.Path, status.Err)
-		} else {
-			if *vverbosity {
+		if *vverbosity {
+			if status.Err != nil {
+				fmt.Printf("%6d: %s, INDEX ERROR (%s): %v\n", counter,
+					actionMsg[status.Action], status.Path, status.Err)
+				errors++
+			} else {
 				fmt.Printf("%6d: %s, %s\n", counter,
 					actionMsg[status.Action], status.Path)
 			}
@@ -66,8 +67,9 @@ func updateTracks() {
 	}
 	deltaTime := time.Since(timeStart).Seconds()
 
-	fmt.Printf("Added: %d\tUpdated: %d\n", added, updated)
-	fmt.Printf("Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
+	fmt.Printf("   Added: %d\tUpdated: %d\tErrors: %d\n",
+		added, updated, errors)
+	fmt.Printf("   Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
 		deltaTime/float64(added+updated)*1000)
 }
 
@@ -133,6 +135,8 @@ func main() {
 
 	hts := web.NewHttpTrackServer(index, status)
 	go hts.StartListing()
+
+	fmt.Println("   ...Listening on :8080")
 
 	for s := range status {
 		if *verbosity {
