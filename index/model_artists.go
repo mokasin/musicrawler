@@ -131,7 +131,7 @@ const artists_sql_firstletters = "SELECT DISTINCT %s FROM Artist ORDER BY UPPER(
 // queryLetters reads leading letters of artists name from database
 func (a *Artists) queryLetters() (letters string, err error) {
 	rows, err := a.index.db.Query(
-		fmt.Sprintf(artists_sql_firstletters, "SUBSTR(name, 1, 1)"))
+		fmt.Sprintf(artists_sql_firstletters, "UPPER(SUBSTR(name, 1, 1))"))
 	if err != nil {
 		return "", err
 	}
