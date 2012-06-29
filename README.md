@@ -15,7 +15,7 @@ Basic web access works.
 
 Dependencies
 ------------
-* [TagLib](http://developer.kde.org/~wheeler/taglib.html)
+* [TagLib](http://taglib.github.com/)
 via the C-interface for reading tag metadata
 * [gotaglib](http://github.com/mokasin/gotaglib)
 * [go-sqlite3](https://github.com/mattn/go-sqlite3) by Yasuhiro Matsumoto
@@ -31,7 +31,7 @@ Get it
 
 		$ go get github.com/mokasin/musicrawler
 
-	Get *HAML* and *LESS* via RubyGems and Nodejs Package Manager
+	Get *HAML* and *LESS* via RubyGems and Node.js Package Manager
 
 		$ gem install haml
 		$ npm -g install less
