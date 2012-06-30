@@ -22,6 +22,8 @@ import (
 	"net/http"
 )
 
+const page_title = "musicrawler"
+
 // Caching the main template
 var pageTemplates = template.Must(
 	template.ParseFiles(websitePath + "templates/index.tpl"))
@@ -43,12 +45,17 @@ func renderToString(tmpl *template.Template, data interface{}) (string, error) {
 
 // Renders child into a template named tmpl that eats a Page struct.
 func renderInPage(w http.ResponseWriter, tmpl string, child *template.Template,
-	childData interface{}, p *Page) {
+	childData interface{}, title string) {
+	var p *Page
 	body, err := renderToString(child, childData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	} else {
-		p.Body = template.HTML(body)
+		p = &Page{
+			Title: page_title + ": " + title,
+			Body:  template.HTML(body),
+		}
 	}
 
 	renderPage(w, tmpl, p)

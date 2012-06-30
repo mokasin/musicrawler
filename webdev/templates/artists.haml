@@ -7,6 +7,20 @@
   {{end}}
   {{end}}
 
+%ul.breadcrumb
+  {{range .Breadcrumb}}
+  {{if .Active}}
+  %li.active
+    %a(href="{{.Path}}") {{.Label}}
+    %span.divider /
+  {{else}}
+  %li 
+    %a(href="{{.Path}}") {{.Label}}
+    %span.divider /
+  {{end}}
+  {{end}}
+
+
 %div.artist-table
   %table.table.table-condensed.table-striped
     %thead
