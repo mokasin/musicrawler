@@ -22,22 +22,36 @@ import (
 )
 
 type Controller struct {
-	index  *index.Index
-	tmpl   *template.Template
-	status chan<- *Status
+	index *index.Index
+	tmpl  *template.Template
+	route string
 }
 
-// Constructor.
-func NewController(index *index.Index) *Controller {
-	return &Controller{index: index}
+// Constructor. Needs templates to register.
+func NewController(index *index.Index, route string, templates ...string) *Controller {
+	var tmpl *template.Template
+
+	if len(templates) > 0 {
+		for i := 0; i < len(templates); i++ {
+			templates[i] = websitePath + "templates/" + templates[i] + ".html"
+		}
+		tmpl = template.Must(template.ParseFiles(templates...))
+	}
+
+	return &Controller{
+		index: index,
+		route: route,
+		tmpl:  tmpl,
+	}
 }
 
 // Parses and returns template with name name. At the first call, the parsed
 // template is saved at c.tmpl
 func (c *Controller) Tmpl(name string) *template.Template {
-	if c.tmpl == nil {
-		c.tmpl = template.Must(
-			template.ParseFiles(websitePath + "templates/" + name + ".html"))
+	t := c.tmpl.Lookup(name + ".html")
+	if t == nil {
+		t, _ = template.ParseFiles(websitePath + "templates/" + name + ".html")
 	}
-	return c.tmpl.Lookup(name + ".html")
+
+	return t
 }

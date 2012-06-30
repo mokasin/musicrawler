@@ -26,8 +26,8 @@ type ControllerContent struct {
 	Controller
 }
 
-func NewControllerContent(index *index.Index) *ControllerContent {
-	return &ControllerContent{Controller: *NewController(index)}
+func NewControllerContent(index *index.Index, route string) *ControllerContent {
+	return &ControllerContent{Controller: *NewController(index, route)}
 }
 
 // Serving a audio file that has an entry in the database.

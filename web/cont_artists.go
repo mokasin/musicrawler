@@ -36,13 +36,18 @@ type ControllerArtists struct {
 }
 
 // Constructor.
-func NewControllerArtists(index *index.Index) *ControllerArtists {
-	return &ControllerArtists{Controller: *NewController(index)}
+func NewControllerArtists(index *index.Index, route string) *ControllerArtists {
+	return &ControllerArtists{
+		Controller: *NewController(index, route, "artists", "artist"),
+	}
 }
 
+// Implementation of SelectHandler.
 func (c *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
+
 	// get first letter of artists
 	letters, err := c.index.Artists.Letters()
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -100,5 +105,6 @@ func (c *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, selec
 	}
 
 	// render the website
-	renderInPage(w, "index", c.Tmpl("artists"), c, &Page{Title: "musicrawler"})
+	renderInPage(w, "index", c.Tmpl("artist"), c, name)
+
 }
