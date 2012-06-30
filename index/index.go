@@ -28,7 +28,6 @@ type Index struct {
 	Filename  string
 	db        *sql.DB
 	timestamp int64
-	Tracks    *Tracks
 	Artists   *Artists
 }
 
@@ -61,7 +60,6 @@ func NewIndex(filename string) (*Index, error) {
 	}
 
 	// initializing members
-	i.Tracks = NewTracks(i)
 	i.Artists = NewArtists(i)
 
 	return i, nil
@@ -79,9 +77,9 @@ func (i *Index) Close() {
 // Creates the basic database structure.
 func (i *Index) createDatabase() error {
 	sqls := []string{
-		SQL_CREATE_ARTIST,
-		SQL_CREATE_ALBUM,
-		SQL_CREATE_TRACK,
+		sql_create_artist,
+		sql_create_album,
+		sql_create_track,
 	}
 
 	tx, err := i.db.Begin()
@@ -113,7 +111,7 @@ func (i *Index) insertArtistAlbum(tag *source.TrackTags, stmtInsertArtist *sql.S
 		return err
 	}
 
-	if _, err := stmtInsertAlbum.Exec(tag.Album); err != nil {
+	if _, err := stmtInsertAlbum.Exec(tag.Album, tag.Artist); err != nil {
 		return err
 	}
 	return nil
@@ -232,35 +230,35 @@ func (i *Index) update(tracks <-chan source.TrackInfo,
 	defer rows.Close()
 
 	// prepare insert statements
-	stmtInsertArtist, err := tx.Prepare(SQL_INSERT_ARTIST)
+	stmtInsertArtist, err := tx.Prepare(sql_insert_artist)
 	if err != nil {
 		close(status)
 		return &UpdateResult{Err: err}
 	}
 	defer stmtInsertArtist.Close()
 
-	stmtInsertAlbum, err := tx.Prepare(SQL_INSERT_ALBUM)
+	stmtInsertAlbum, err := tx.Prepare(sql_insert_album)
 	if err != nil {
 		close(status)
 		return &UpdateResult{Err: err}
 	}
 	defer stmtInsertAlbum.Close()
 
-	stmtUpdateTimestamp, err := tx.Prepare(SQL_UPDATE_TIMESTAMP)
+	stmtUpdateTimestamp, err := tx.Prepare(sql_update_timestamp)
 	if err != nil {
 		close(status)
 		return &UpdateResult{Err: err}
 	}
 	defer stmtUpdateTimestamp.Close()
 
-	stmtAddTrack, err := tx.Prepare(SQL_ADD_TRACK)
+	stmtAddTrack, err := tx.Prepare(sql_add_track)
 	if err != nil {
 		close(status)
 		return &UpdateResult{Err: err}
 	}
 	defer stmtAddTrack.Close()
 
-	stmtUpdateTrack, err := tx.Prepare(SQL_UPDATE_TRACK)
+	stmtUpdateTrack, err := tx.Prepare(sql_update_track)
 	if err != nil {
 		close(status)
 		return &UpdateResult{Err: err}
@@ -335,6 +333,7 @@ func (i *Index) DeleteDanglingEntries() (int64, error) {
 		return deletedTracks, err
 	}
 
+	//TODO needs rework
 	if _, err := tx.Exec("DELETE FROM Artist WHERE ID IN " +
 		"(SELECT Artist.ID FROM Artist LEFT JOIN Track ON " +
 		"Artist.ID = Track.trackartist WHERE Track.trackartist " +

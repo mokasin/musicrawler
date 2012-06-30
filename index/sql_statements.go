@@ -1,40 +1,49 @@
 package index
 
 // SQL queries to create the database schema
-const SQL_CREATE_ARTIST = `
+const sql_create_artist = `
 	CREATE TABLE Artist
 	(
 		ID   INTEGER  NOT NULL PRIMARY KEY,
 		name TEXT     UNIQUE
 	);`
-const SQL_CREATE_ALBUM = `
+const sql_create_album = `
 	CREATE TABLE Album
 	(
 		ID   INTEGER NOT NULL PRIMARY KEY,
-		name TEXT    UNIQUE
+		name TEXT,
+		artist INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
 	);`
-const SQL_CREATE_TRACK = `
+const sql_create_track = `
 	CREATE TABLE Track
 	(
-		path        TEXT NOT NULL PRIMARY KEY,
+		ID INTEGER NOT NULL PRIMARY KEY,
+		path        TEXT NOT NULL,
 		title       TEXT,
 		tracknumber INTEGER,
 		year        INTEGER,
 		length      INTEGER,
 		genre       TEXT,
-		trackartist	INTEGER	REFERENCES Album(ID) ON DELETE SET NULL,
-		trackalbum	INTEGER	REFERENCES Artist(ID) ON DELETE SET NULL,
+		trackalbum	INTEGER	REFERENCES Album(ID) ON DELETE SET NULL,
 		filemtime	INTEGER,
 		dbmtime		INTEGER
 	);`
 
-const SQL_INSERT_ARTIST = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
-const SQL_INSERT_ALBUM = "INSERT OR IGNORE INTO Album(name) VALUES (?);"
+const sql_insert_artist = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
+const sql_insert_album = `INSERT OR FAIL INTO Album(name, artist)
+		VALUES (?,
+				(SELECT ID FROM Artist WHERE name = ?));`
 
-const SQL_ADD_TRACK = `INSERT INTO Track(
+//const sql_insert_album = `INSERT INTO Album(name, artist) 
+//VALUES (?, (SELECT id FROM Artist WHERE name = ?))
+//WHERE NOT EXISTS (
+//	SELECT al.name, ar.artist FROM Album al
+//	JOIN Artist ar ON al.artist = ar.id
+//);`
+
+const sql_add_track = `INSERT INTO Track(
 	path,
 	title,
-	trackartist,
 	trackalbum,
 	tracknumber,
 	year,
@@ -43,15 +52,13 @@ const SQL_ADD_TRACK = `INSERT INTO Track(
 	filemtime,
 	dbmtime)
     VALUES( ?, ?, 
-		   (SELECT ID FROM Artist WHERE name = ?), 
 		   (SELECT ID FROM Album  WHERE name = ?), 
 		    ?, ?, ?, ?, ?, ?);`
 
-const SQL_UPDATE_TIMESTAMP = "UPDATE Track SET dbmtime = ? WHERE path = ?;"
+const sql_update_timestamp = "UPDATE Track SET dbmtime = ? WHERE path = ?;"
 
-const SQL_UPDATE_TRACK = `UPDATE Track SET
+const sql_update_track = `UPDATE Track SET
 	title       = ?,
-	trackartist = (SELECT ID FROM Artist WHERE name = ?),
 	trackalbum  = (SELECT ID FROM Album  WHERE name = ?),
 	tracknumber = ?,
 	year        = ?,
