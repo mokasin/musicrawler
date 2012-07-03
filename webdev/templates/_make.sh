@@ -8,6 +8,6 @@ if [ ! -d ${TARGET} ]; then
 fi
 
 for file in $(find $(dirname ${0}) -type f -name "*.haml"); do
-	echo "HAML->HTML: ${file} -> ${TARGET}/$(basename ${file} .haml).html"
-	haml ${file} "${TARGET}/$(basename ${file} .haml).html";
+	echo "HAML->HTML: ${file} -> ${TARGET}/$(basename ${file} .haml).tpl"
+	haml ${file} "${TARGET}/$(basename ${file} .haml).tpl";
 done

@@ -33,7 +33,7 @@ func NewController(index *index.Index, route string, templates ...string) *Contr
 
 	if len(templates) > 0 {
 		for i := 0; i < len(templates); i++ {
-			templates[i] = websitePath + "templates/" + templates[i] + ".html"
+			templates[i] = websitePath + "templates/" + templates[i] + ".tpl"
 		}
 		tmpl = template.Must(template.ParseFiles(templates...))
 	}
@@ -50,7 +50,7 @@ func NewController(index *index.Index, route string, templates ...string) *Contr
 func (c *Controller) Tmpl(name string) *template.Template {
 	t := c.tmpl.Lookup(name + ".html")
 	if t == nil {
-		t, _ = template.ParseFiles(websitePath + "templates/" + name + ".html")
+		t, _ = template.ParseFiles(websitePath + "templates/" + name + ".tpl")
 	}
 
 	return t

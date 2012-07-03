@@ -24,7 +24,7 @@ import (
 
 // Caching the main template
 var pageTemplates = template.Must(
-	template.ParseFiles(websitePath + "templates/index.html"))
+	template.ParseFiles(websitePath + "templates/index.tpl"))
 
 // Basic page structure.
 type Page struct {
