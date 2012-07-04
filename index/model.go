@@ -18,7 +18,6 @@ package index
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -27,6 +26,7 @@ type Query map[string]interface{}
 type Result map[string]interface{}
 
 // Model describes the basis of all models, i.e. database representations.
+// TODO Documentation
 type Model struct {
 	index *Index
 	name  string
@@ -55,7 +55,7 @@ func (m *Model) Name() string {
 func (m *Model) Encode(src interface{}) (Result, error) {
 	v := reflect.ValueOf(src)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
-		return nil, errors.New("schema: interface must be a pointer to struct.")
+		return nil, fmt.Errorf("src must be a pointer to struct.")
 	}
 
 	v = v.Elem()
@@ -68,6 +68,8 @@ func (m *Model) Encode(src interface{}) (Result, error) {
 		if t.Field(i).PkgPath != "" {
 			continue
 		}
+
+		// check struct's tag if value should be set (!= "0")
 		if t.Field(i).Tag.Get("set") != "0" {
 			res[t.Field(i).Tag.Get("name")] = v.Field(i).Interface()
 		}
@@ -82,7 +84,7 @@ func (m *Model) Encode(src interface{}) (Result, error) {
 func (m *Model) Decode(src Result, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
-		return errors.New("dest must be a pointer to struct.")
+		return fmt.Errorf("dest must be a pointer to struct.")
 	}
 
 	v = v.Elem()
@@ -94,6 +96,7 @@ func (m *Model) Decode(src Result, dest interface{}) error {
 			continue
 		}
 
+		// read out struct's tag to get the column name
 		val, ok := src[t.Field(i).Tag.Get("name")]
 		if !ok {
 			return fmt.Errorf("No column named '%s' connected to "+
@@ -157,6 +160,7 @@ func (m *Model) DecodeAll(src []Result, dest interface{}) error {
 	t := reflect.TypeOf(dest)
 	v.Elem().Set(reflect.MakeSlice(t.Elem(), len(src), len(src)))
 
+	// Feed Decode method with it
 	for i := 0; i < v.Elem().Len(); i++ {
 		err := m.Decode(src[i], v.Elem().Index(i).Addr().Interface())
 		if err != nil {
@@ -207,18 +211,21 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	fmt.Printf("QUERY: %s :: ", fmt.Sprintf(sql, "*"))
 	fmt.Println(args...)
 
+	// get the count of rows in the result
 	var count int
 	err := m.tx.QueryRow(fmt.Sprintf(sql, "COUNT(*)"), args...).Scan(&count)
 	if err != nil {
 		return err
 	}
 
+	// do the actual query
 	rows, err := m.tx.Query(fmt.Sprintf(sql, "*"), args...)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
+	// find out about the columns in the database
 	columns, err := rows.Columns()
 	if err != nil {
 		return err
@@ -239,6 +246,7 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 		col_args[i] = &col_vals[i]
 	}
 
+	// read out columns and save them in a Result map
 	c := 0
 	for rows.Next() {
 		if err := rows.Scan(col_args...); err != nil {
@@ -252,6 +260,7 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 		c++
 	}
 
+	// writing result into structs given by the caller
 	err = m.DecodeAll(result, dest)
 	if err != nil {
 		return err
@@ -343,6 +352,31 @@ func (m *Model) Where(dest interface{}, query Query, limit int) error {
 	for key, val := range query {
 		vals[c] = val
 		where += fmt.Sprintf("%s.%s = ? AND ", m.Name(), key)
+		c++
+	}
+	where = where[:len(where)-5]
+
+	if limit > 0 {
+		where += fmt.Sprintf(" LIMIT %d", limit)
+	}
+
+	return m.Query(dest,
+		fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where),
+		vals...,
+	)
+
+}
+
+// Where TODO: Documentation needed.
+func (m *Model) Like(dest interface{}, query Query, limit int) error {
+	var where string
+
+	vals := make([]interface{}, len(query))
+
+	c := 0
+	for key, val := range query {
+		vals[c] = val
+		where += fmt.Sprintf("%s.%s LIKE ? AND ", m.Name(), key)
 		c++
 	}
 	where = where[:len(where)-5]

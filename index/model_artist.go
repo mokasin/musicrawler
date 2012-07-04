@@ -16,18 +16,17 @@
 
 package index
 
-import (
-	"fmt"
-)
-
+// Define artist model.
 type Artists struct {
 	Model
 }
 
 func NewArtists(index *Index) *Artists {
+	// feed it with index and table name
 	return &Artists{Model: *NewModel(index, "artist")}
 }
 
+// Define scheme of artist entry.
 type Artist struct {
 	Id   int    `name:"ID" set:"0"`
 	Name string `name:"name"`
@@ -49,5 +48,11 @@ func (a *Artists) Find(ID int) (*Artist, error) {
 func (a *Artists) Where(query Query, limit int) (*[]Artist, error) {
 	var ar []Artist
 	err := a.Model.Where(&ar, query, limit)
+	return &ar, err
+}
+
+func (a *Artists) Like(query Query, limit int) (*[]Artist, error) {
+	var ar []Artist
+	err := a.Model.Like(&ar, query, limit)
 	return &ar, err
 }
