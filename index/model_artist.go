@@ -29,56 +29,25 @@ func NewArtists(index *Index) *Artists {
 }
 
 type Artist struct {
-	Id   int    `name:"ID" create:"0"`
+	Id   int    `name:"ID" set:"0"`
 	Name string `name:"name"`
 }
 
-// just for fun
-func (m *Artist) String() string {
-	return fmt.Sprintf("Artist{id -> %03d, name -> %s}", m.Id, m.Name)
-}
-
-// All the following is just about type conversion. This sucks.
-func (a *Artists) toArtists(src []Result, err error) ([]*Artist, error) {
-	if err != nil {
-		return nil, err
-	}
-
-	dest := make([]*Artist, len(src))
-
-	for i := 0; i < len(dest); i++ {
-		dest[i] = new(Artist)
-		err = a.Decode(src[i], dest[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return dest, nil
-}
-
-func (a *Artists) toArtist(src Result, err error) (*Artist, error) {
-	if err != nil {
-		return nil, err
-	}
-
-	dest := new(Artist)
-	err = a.Decode(src, dest)
-	if err != nil {
-		return nil, err
-	}
-
-	return dest, nil
-}
-
-func (a *Artists) All() ([]*Artist, error) {
-	return a.toArtists(a.Model.All())
+// Wrappers for convinence.
+func (a *Artists) All() (*[]Artist, error) {
+	var ar []Artist
+	err := a.Model.All(&ar)
+	return &ar, err
 }
 
 func (a *Artists) Find(ID int) (*Artist, error) {
-	return a.toArtist(a.Model.Find(ID))
+	var ar Artist
+	err := a.Model.Find(&ar, ID)
+	return &ar, err
 }
 
-func (a *Artists) Where(query Query) ([]*Artist, error) {
-	return a.toArtists(a.Model.Where(query))
+func (a *Artists) Where(query Query, limit int) (*[]Artist, error) {
+	var ar []Artist
+	err := a.Model.Where(&ar, query, limit)
+	return &ar, err
 }

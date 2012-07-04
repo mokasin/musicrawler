@@ -68,7 +68,7 @@ func (m *Model) Encode(src interface{}) (Result, error) {
 		if t.Field(i).PkgPath != "" {
 			continue
 		}
-		if t.Field(i).Tag.Get("create") != "0" {
+		if t.Field(i).Tag.Get("set") != "0" {
 			res[t.Field(i).Tag.Get("name")] = v.Field(i).Interface()
 		}
 	}
@@ -82,7 +82,7 @@ func (m *Model) Encode(src interface{}) (Result, error) {
 func (m *Model) Decode(src Result, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
-		return errors.New("schema: interface must be a pointer to struct.")
+		return errors.New("dest must be a pointer to struct.")
 	}
 
 	v = v.Elem()
@@ -102,6 +102,8 @@ func (m *Model) Decode(src Result, dest interface{}) error {
 				t.Name(), t.Field(i).Name, v.Field(i).Kind(),
 			)
 		}
+
+		dest = reflect.New(reflect.TypeOf(dest))
 
 		// do type assertion
 		switch v.Field(i).Kind() {
@@ -135,6 +137,36 @@ func (m *Model) Decode(src Result, dest interface{}) error {
 	return nil
 }
 
+// DecodeAll does what Decode does but with a couple of results.
+func (m *Model) DecodeAll(src []Result, dest interface{}) error {
+	v := reflect.ValueOf(dest)
+	if v.Kind() != reflect.Ptr || (v.Elem().Kind() != reflect.Slice &&
+		v.Elem().Kind() != reflect.Struct) {
+		return fmt.Errorf("dest must be a pointer to a slice or a struct.")
+	}
+
+	if v.Elem().Kind() == reflect.Struct {
+		if len(src) != 1 {
+			return fmt.Errorf("Can't write data from database to struct. " +
+				"Dimension mismatch.")
+		}
+		return m.Decode(src[0], v.Interface())
+	}
+
+	// Making slice big enough
+	t := reflect.TypeOf(dest)
+	v.Elem().Set(reflect.MakeSlice(t.Elem(), len(src), len(src)))
+
+	for i := 0; i < v.Elem().Len(); i++ {
+		err := m.Decode(src[i], v.Elem().Index(i).Addr().Interface())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // BeginTransaction starts a new database transaction.
 func (m *Model) BeginTransaction() (err error) {
 	if m.txOpen {
@@ -163,11 +195,11 @@ func (m *Model) EndTransaction() error {
 }
 
 // Query TODO: Documentation needed.
-func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
+func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	if !m.txOpen {
 		err := m.BeginTransaction()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		defer m.EndTransaction()
 	}
@@ -178,18 +210,18 @@ func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 	var count int
 	err := m.tx.QueryRow(fmt.Sprintf(sql, "COUNT(*)"), args...).Scan(&count)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	rows, err := m.tx.Query(fmt.Sprintf(sql, "*"), args...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// prepare result
@@ -210,7 +242,7 @@ func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 	c := 0
 	for rows.Next() {
 		if err := rows.Scan(col_args...); err != nil {
-			return nil, err
+			return err
 		}
 
 		for i := 0; i < len(columns); i++ {
@@ -220,11 +252,12 @@ func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 		c++
 	}
 
+	err = m.DecodeAll(result, dest)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return result, rows.Err()
+	return rows.Err()
 }
 
 func (m *Model) Exec(sql string, args ...interface{}) error {
@@ -270,6 +303,7 @@ func (m *Model) Create(item interface{}) error {
 	if err != nil {
 		return err
 	}
+
 	vals := make([]interface{}, len(hitem))
 	query := "INSERT INTO " + m.Name() + "("
 
@@ -290,25 +324,17 @@ func (m *Model) Create(item interface{}) error {
 }
 
 // All TODO: Documentation needed.
-func (m *Model) All() ([]Result, error) {
-	return m.Query(fmt.Sprintf("SELECT %%s FROM %s", m.Name()))
+func (m *Model) All(dest interface{}) error {
+	return m.Query(dest, fmt.Sprintf("SELECT %%s FROM %s", m.Name()))
 }
 
 // Find TODO: Documentation needed.
-func (m *Model) Find(ID int) (Result, error) {
-	r, err := m.Query(
-		fmt.Sprintf("SELECT %%s FROM %s WHERE '%s'.ID=? LIMIT 1",
-			m.Name(), m.Name()), ID)
-
-	if len(r) == 0 {
-		return nil, err
-	}
-
-	return r[0], err
+func (m *Model) Find(dest interface{}, ID int) error {
+	return m.Where(dest, Query{"ID": ID}, 1)
 }
 
 // Where TODO: Documentation needed.
-func (m *Model) Where(query Query) ([]Result, error) {
+func (m *Model) Where(dest interface{}, query Query, limit int) error {
 	var where string
 
 	vals := make([]interface{}, len(query))
@@ -321,7 +347,11 @@ func (m *Model) Where(query Query) ([]Result, error) {
 	}
 	where = where[:len(where)-5]
 
-	return m.Query(
+	if limit > 0 {
+		where += fmt.Sprintf(" LIMIT %d", limit)
+	}
+
+	return m.Query(dest,
 		fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where),
 		vals...,
 	)
