@@ -64,27 +64,7 @@ func (a *Artists) Limit(number int) *Artists {
 	return a
 }
 
-//// Wrappers for convinence.
-//func (a *Artists) All() (*[]Artist, error) {
-//	var ar []Artist
-//	err := a.Model.All(&ar)
-//	return &ar, err
-//}
-//
-//func (a *Artists) Find(ID int) (*Artist, error) {
-//	var ar Artist
-//	err := a.Model.Find(&ar, ID)
-//	return &ar, err
-//}
-//
-//func (a *Artists) Where(query Query, limit int) (*[]Artist, error) {
-//	var ar []Artist
-//	err := a.Model.Where(&ar, query, limit)
-//	return &ar, err
-//}
-//
-//func (a *Artists) Like(query Query, limit int) (*[]Artist, error) {
-//	var ar []Artist
-//	err := a.Model.Like(&ar, query, limit)
-//	return &ar, err
-//}
+func (a *Artists) OrderBy(column string) *Artists {
+	a.Model.OrderBy(column)
+	return a
+}

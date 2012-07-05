@@ -30,7 +30,7 @@ const (
 	stWhere
 	stLike
 	stAll
-	stOrdered
+	stOrder
 	stOrderedDsc
 	stLimit
 	stExecuted
@@ -313,12 +313,17 @@ func (m *Model) Execute(sql string, args ...interface{}) error {
 // Exec queries the database.
 func (m *Model) Exec(dest interface{}) error {
 	if m.st == stStart {
-		return fmt.Errorf("Model is not in executable st.")
+		return fmt.Errorf("Model is not in an executable state.")
 	}
-	m.st = stStart
-	m.state.err = m.Query(dest, m.sql, m.args...)
 
-	return m.state.err
+	if m.state.err != nil {
+		return m.state.err
+	}
+
+	m.st = stStart
+	m.state.err = nil
+
+	return m.Query(dest, m.sql, m.args...)
 }
 
 /*
@@ -377,7 +382,7 @@ func (m *Model) Create(item interface{}) error {
 // All TODO: Documentation needed.
 func (m *Model) All() *Model {
 	if m.st != stStart {
-		m.state.err = fmt.Errorf("Can't call All() in that st.")
+		m.state.err = fmt.Errorf("Can't call All() in state %d.", m.st)
 		return nil
 	}
 
@@ -395,7 +400,7 @@ func (m *Model) Find(ID int) *Model {
 // Where TODO: Documentation needed.
 func (m *Model) Where(query Query) *Model {
 	if m.st != stStart {
-		m.state.err = fmt.Errorf("Can't call Where() in that st.")
+		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
 		return nil
 	}
 
@@ -446,15 +451,33 @@ func (m *Model) Like(query Query) *Model {
 	return m
 }
 
+// Limit limits the number of returned rows to number.
 func (m *Model) Limit(number int) *Model {
 	switch m.st {
-	case stAll, stWhere, stLike:
+	case stAll, stWhere, stLike, stOrder:
 		m.state.sql += " LIMIT ?"
 		m.state.args = append(m.state.args, number)
 	default:
 		m.state.err = fmt.Errorf("Cannot call Limit() on state %d.", m.st)
 		return nil
 	}
+
+	m.st = stLimit
+
+	return m
+}
+
+// OrderedBy is ordering the result ascending by column.
+func (m *Model) OrderBy(column string) *Model {
+	switch m.st {
+	case stAll, stWhere, stLike:
+		m.state.sql += " ORDER BY UPPER(" + column + ")"
+	default:
+		m.state.err = fmt.Errorf("Cannot call OrderedBy() on state %d.", m.st)
+		return nil
+	}
+
+	m.st = stOrder
 
 	return m
 }
