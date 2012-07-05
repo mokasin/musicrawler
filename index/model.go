@@ -25,14 +25,34 @@ import (
 type Query map[string]interface{}
 type Result map[string]interface{}
 
+const (
+	stStart = iota
+	stWhere
+	stLike
+	stAll
+	stOrdered
+	stOrderedDsc
+	stLimit
+	stExecuted
+)
+
+type state struct {
+	sql  string
+	args []interface{}
+	st   int
+	err  error
+}
+
 // Model describes the basis of all models, i.e. database representations.
 // TODO Documentation
 type Model struct {
 	index *Index
-	name  string
+	name  string // name of table
 
 	tx     *sql.Tx
-	txOpen bool
+	txOpen bool // flag true, when exists an open transaction
+
+	state
 }
 
 // Constructor of Model. Needs a database index to work on it, a name of the
@@ -48,6 +68,13 @@ func NewModel(index *Index, name string) *Model {
 func (m *Model) Name() string {
 	return m.name
 }
+
+/*
+*
+*	ENCODING AND DECODING
+*	MAP <-> STRUCT
+*
+ */
 
 // Encode eats a pointer to a struct src and converts all exported fields into a
 // map
@@ -171,6 +198,12 @@ func (m *Model) DecodeAll(src []Result, dest interface{}) error {
 	return nil
 }
 
+/*
+*
+*	BASIC DATABASE ACCESS
+*
+ */
+
 // BeginTransaction starts a new database transaction.
 func (m *Model) BeginTransaction() (err error) {
 	if m.txOpen {
@@ -269,7 +302,8 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	return rows.Err()
 }
 
-func (m *Model) Exec(sql string, args ...interface{}) error {
+// Execute just executes sql query in global transaction.
+func (m *Model) Execute(sql string, args ...interface{}) error {
 	if !m.txOpen {
 		err := m.BeginTransaction()
 		if err != nil {
@@ -284,6 +318,23 @@ func (m *Model) Exec(sql string, args ...interface{}) error {
 	_, err := m.tx.Exec(sql, args...)
 	return err
 }
+
+// Exec queries the database.
+func (m *Model) Exec(dest interface{}) error {
+	if m.st == stStart {
+		return fmt.Errorf("Model is not in executable st.")
+	}
+	m.st = stStart
+	m.state.err = m.Query(dest, m.sql, m.args...)
+
+	return m.state.err
+}
+
+/*
+*
+*	HELPER FUNCTIONS
+*
+ */
 
 // Count returns the number of all database entries of this model.
 func (m *Model) Count() (count int) {
@@ -329,21 +380,36 @@ func (m *Model) Create(item interface{}) error {
 	query = query[:len(query)-1]
 	query += ") VALUES(" + tmp[:len(tmp)-1] + ")"
 
-	return m.Exec(query, vals...)
+	return m.Execute(query, vals...)
 }
 
 // All TODO: Documentation needed.
-func (m *Model) All(dest interface{}) error {
-	return m.Query(dest, fmt.Sprintf("SELECT %%s FROM %s", m.Name()))
+func (m *Model) All() *Model {
+	if m.st != stStart {
+		m.state.err = fmt.Errorf("Can't call All() in that st.")
+		return nil
+	}
+
+	m.st = stAll
+	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s", m.Name())
+
+	return m
 }
 
 // Find TODO: Documentation needed.
-func (m *Model) Find(dest interface{}, ID int) error {
-	return m.Where(dest, Query{"ID": ID}, 1)
+func (m *Model) Find(ID int) *Model {
+	return m.Where(Query{"ID": ID})
 }
 
 // Where TODO: Documentation needed.
-func (m *Model) Where(dest interface{}, query Query, limit int) error {
+func (m *Model) Where(query Query) *Model {
+	if m.st != stStart {
+		m.state.err = fmt.Errorf("Can't call Where() in that st.")
+		return nil
+	}
+
+	m.st = stWhere
+
 	var where string
 
 	vals := make([]interface{}, len(query))
@@ -356,19 +422,21 @@ func (m *Model) Where(dest interface{}, query Query, limit int) error {
 	}
 	where = where[:len(where)-5]
 
-	if limit > 0 {
-		where += fmt.Sprintf(" LIMIT %d", limit)
-	}
+	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where)
+	m.state.args = vals
 
-	return m.Query(dest,
-		fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where),
-		vals...,
-	)
-
+	return m
 }
 
 // Where TODO: Documentation needed.
-func (m *Model) Like(dest interface{}, query Query, limit int) error {
+func (m *Model) Like(query Query) *Model {
+	if m.st != stStart {
+		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
+		return nil
+	}
+
+	m.st = stLike
+
 	var where string
 
 	vals := make([]interface{}, len(query))
@@ -381,17 +449,30 @@ func (m *Model) Like(dest interface{}, query Query, limit int) error {
 	}
 	where = where[:len(where)-5]
 
-	if limit > 0 {
-		where += fmt.Sprintf(" LIMIT %d", limit)
-	}
+	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where)
+	m.state.args = vals
 
-	return m.Query(dest,
-		fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where),
-		vals...,
-	)
-
+	return m
 }
 
+func (m *Model) Limit(number int) *Model {
+	switch m.st {
+	case stAll, stWhere, stLike:
+		m.state.sql += " LIMIT ?"
+		m.state.args = append(m.state.args, number)
+	default:
+		m.state.err = fmt.Errorf("Cannot call Limit() on state %d.", m.st)
+		return nil
+	}
+
+	return m
+}
+
+/*
+*
+*	DEFINITIONS
+*
+ */
 // Error types
 
 type ErrNoOpenTransaction struct{}

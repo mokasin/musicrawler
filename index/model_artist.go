@@ -32,27 +32,59 @@ type Artist struct {
 	Name string `name:"name"`
 }
 
+func (a *Artists) Exec() (*[]Artist, error) {
+	var ar []Artist
+	err := a.Model.Exec(&ar)
+	return &ar, err
+}
+
 // Wrappers for convinence.
-func (a *Artists) All() (*[]Artist, error) {
-	var ar []Artist
-	err := a.Model.All(&ar)
-	return &ar, err
+func (a *Artists) All() *Artists {
+	a.Model.All()
+	return a
 }
 
-func (a *Artists) Find(ID int) (*Artist, error) {
-	var ar Artist
-	err := a.Model.Find(&ar, ID)
-	return &ar, err
+func (a *Artists) Find(ID int) *Artists {
+	a.Model.Find(ID)
+	return a
 }
 
-func (a *Artists) Where(query Query, limit int) (*[]Artist, error) {
-	var ar []Artist
-	err := a.Model.Where(&ar, query, limit)
-	return &ar, err
+func (a *Artists) Where(query Query) *Artists {
+	a.Model.Where(query)
+	return a
 }
 
-func (a *Artists) Like(query Query, limit int) (*[]Artist, error) {
-	var ar []Artist
-	err := a.Model.Like(&ar, query, limit)
-	return &ar, err
+func (a *Artists) Like(query Query) *Artists {
+	a.Model.Like(query)
+	return a
 }
+
+func (a *Artists) Limit(number int) *Artists {
+	a.Model.Limit(number)
+	return a
+}
+
+//// Wrappers for convinence.
+//func (a *Artists) All() (*[]Artist, error) {
+//	var ar []Artist
+//	err := a.Model.All(&ar)
+//	return &ar, err
+//}
+//
+//func (a *Artists) Find(ID int) (*Artist, error) {
+//	var ar Artist
+//	err := a.Model.Find(&ar, ID)
+//	return &ar, err
+//}
+//
+//func (a *Artists) Where(query Query, limit int) (*[]Artist, error) {
+//	var ar []Artist
+//	err := a.Model.Where(&ar, query, limit)
+//	return &ar, err
+//}
+//
+//func (a *Artists) Like(query Query, limit int) (*[]Artist, error) {
+//	var ar []Artist
+//	err := a.Model.Like(&ar, query, limit)
+//	return &ar, err
+//}
