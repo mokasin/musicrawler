@@ -244,13 +244,6 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	fmt.Printf("QUERY: %s :: ", fmt.Sprintf(sql, "*"))
 	fmt.Println(args...)
 
-	// get the count of rows in the result
-	var count int
-	err := m.tx.QueryRow(fmt.Sprintf(sql, "COUNT(*)"), args...).Scan(&count)
-	if err != nil {
-		return err
-	}
-
 	// do the actual query
 	rows, err := m.tx.Query(fmt.Sprintf(sql, "*"), args...)
 	if err != nil {
@@ -265,10 +258,7 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	}
 
 	// prepare result
-	result := make([]Result, count)
-	for i := 0; i < count; i++ {
-		result[i] = make(Result)
-	}
+	var result []Result
 
 	// stupid trick, because rows.Scan will not take []interface as args
 	col_vals := make([]interface{}, len(columns))
@@ -280,17 +270,18 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	}
 
 	// read out columns and save them in a Result map
-	c := 0
 	for rows.Next() {
 		if err := rows.Scan(col_args...); err != nil {
 			return err
 		}
 
+		res := make(Result)
+
 		for i := 0; i < len(columns); i++ {
-			result[c][columns[i]] = col_vals[i]
+			res[columns[i]] = col_vals[i]
 		}
 
-		c++
+		result = append(result, res)
 	}
 
 	// writing result into structs given by the caller
