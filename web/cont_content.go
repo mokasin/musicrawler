@@ -35,7 +35,7 @@ func (c *ControllerContent) Select(w http.ResponseWriter, r *http.Request, path 
 
 	valid := false
 
-	tracks, err := c.index.Tracks.All()
+	tracks, err := c.index.Tracks.All().Exec()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

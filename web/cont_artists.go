@@ -47,7 +47,7 @@ func NewControllerArtists(index *index.Index, route string) *ControllerArtists {
 func (c *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	// get first letter of artists
-	letters, err := c.index.Artists.Letters()
+	letters, err := c.index.Artists.All().OrderBy("name").Letters("name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -112,7 +112,7 @@ func (c *ControllerArtists) linkToArtist(name string) string {
 func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
 
 	// get first letter of artists
-	letters, err := c.index.Artists.Letters()
+	letters, err := c.index.Artists.All().OrderBy("name").Letters("name")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -124,7 +124,9 @@ func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request
 	}
 
 	// populating data
-	artists, err := c.index.Artists.ByFirstLetter(letter)
+	artists, err := c.index.Artists.LikeQ(
+		index.Query{"name": string(letter) + "%"},
+	).Exec()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -134,8 +136,8 @@ func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request
 
 	// prepare structure for template
 	for i := 0; i < len(*artists); i++ {
-		c.Artists[i].Name = (*artists)[i]
-		c.Artists[i].URL = c.linkToArtist((*artists)[i])
+		c.Artists[i].Name = (*artists)[i].Name
+		c.Artists[i].URL = c.linkToArtist((*artists)[i].Name)
 	}
 
 	c.generatePager(letters, string(letter))

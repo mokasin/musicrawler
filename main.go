@@ -98,14 +98,14 @@ func main() {
 	fmt.Println("-> Open database:", dbFileName)
 
 	// open or create database
-	index, err := index.NewIndex(dbFileName)
+	myindex, err := index.NewIndex(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
 	}
-	defer index.Close()
+	defer myindex.Close()
 
-	sourceList = NewSourceList(index)
+	sourceList = NewSourceList(myindex)
 
 	if *updateFlag {
 		if flag.NArg() == 0 {
@@ -121,19 +121,19 @@ func main() {
 		fmt.Println("-> Update files.")
 		updateTracks()
 
-		fmt.Print("-> Cleanup database.")
-		if del, err := index.DeleteDanglingEntries(); err != nil {
-			fmt.Println("ERROR:", err)
-		} else {
-			fmt.Printf(" %d tracks deleted.\n", del)
-		}
+		//fmt.Print("-> Cleanup database.")
+		//if del, err := index.DeleteDanglingEntries(); err != nil {
+		//	fmt.Println("ERROR:", err)
+		//} else {
+		//	fmt.Printf(" %d tracks deleted.\n", del)
+		//}
 	}
 
 	fmt.Println("-> Starting webserver...\n")
 
 	status := make(chan *web.Status, 1000)
 
-	h := web.NewHTTPTrackServer(index, status)
+	h := web.NewHTTPTrackServer(myindex, status)
 	go h.StartListing()
 
 	fmt.Println("   ...Listening on :8080")

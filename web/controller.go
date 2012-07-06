@@ -48,7 +48,7 @@ func NewController(index *index.Index, route string, templates ...string) *Contr
 // Parses and returns template with name name. At the first call, the parsed
 // template is saved at c.tmpl
 func (c *Controller) Tmpl(name string) *template.Template {
-	t := c.tmpl.Lookup(name + ".html")
+	t := c.tmpl.Lookup(name + ".tpl")
 	if t == nil {
 		t, _ = template.ParseFiles(websitePath + "templates/" + name + ".tpl")
 	}

@@ -63,7 +63,7 @@ func renderInPage(w http.ResponseWriter, tmpl string, child *template.Template,
 
 // Write template with name tmpl to w.
 func renderPage(w http.ResponseWriter, tmpl string, p *Page) {
-	err := pageTemplates.ExecuteTemplate(w, tmpl+".html", p)
+	err := pageTemplates.ExecuteTemplate(w, tmpl+".tpl", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
