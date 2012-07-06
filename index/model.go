@@ -98,7 +98,7 @@ func (m *Model) Encode(src interface{}) (Result, error) {
 
 		// check struct's tag if value should be set (!= "0")
 		if t.Field(i).Tag.Get("set") != "0" {
-			res[t.Field(i).Tag.Get("name")] = v.Field(i).Interface()
+			res[t.Field(i).Tag.Get("column")] = v.Field(i).Interface()
 		}
 	}
 
@@ -123,8 +123,18 @@ func (m *Model) Decode(src Result, dest interface{}) error {
 			continue
 		}
 
+		// Give it a pointer to the index. This is a little bit ugly.
+		if t.Field(i).Name == "Index" {
+			v.Field(i).Set(reflect.ValueOf(m.index))
+			continue
+		}
+
+		if t.Field(i).Tag.Get("column") == "" {
+			continue
+		}
+
 		// read out struct's tag to get the column name
-		val, ok := src[t.Field(i).Tag.Get("name")]
+		val, ok := src[t.Field(i).Tag.Get("column")]
 		if !ok {
 			return fmt.Errorf("No column named '%s' connected to "+
 				"'%s.%s %v' found in database.",
@@ -132,8 +142,6 @@ func (m *Model) Decode(src Result, dest interface{}) error {
 				t.Name(), t.Field(i).Name, v.Field(i).Kind(),
 			)
 		}
-
-		dest = reflect.New(reflect.TypeOf(dest))
 
 		// do type assertion
 		switch v.Field(i).Kind() {
@@ -394,11 +402,26 @@ func (m *Model) All() *Model {
 
 // Find TODO: Documentation needed.
 func (m *Model) Find(ID int) *Model {
-	return m.Where(Query{"ID": ID})
+	return m.WhereQ(Query{"ID": ID})
 }
 
 // Where TODO: Documentation needed.
-func (m *Model) Where(query Query) *Model {
+func (m *Model) Where(query string, args ...interface{}) *Model {
+	if m.st != stStart {
+		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
+		return nil
+	}
+
+	m.st = stWhere
+
+	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), query)
+	m.state.args = args
+
+	return m
+}
+
+// Where TODO: Documentation needed.
+func (m *Model) WhereQ(query Query) *Model {
 	if m.st != stStart {
 		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
 		return nil

@@ -12,10 +12,10 @@ const sql_create_album = `
 	(
 		ID   INTEGER NOT NULL PRIMARY KEY,
 		name TEXT,
-		artist INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
+		artist_id INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
 	);`
 const sql_create_album_index = `
-	CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist);`
+	CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);`
 const sql_create_track = `
 	CREATE TABLE Track
 	(
@@ -26,20 +26,20 @@ const sql_create_track = `
 		year        INTEGER,
 		length      INTEGER,
 		genre       TEXT,
-		trackalbum	INTEGER	REFERENCES Album(ID) ON DELETE SET NULL,
+		album_id	INTEGER	REFERENCES Album(ID) ON DELETE SET NULL,
 		filemtime	INTEGER,
 		dbmtime		INTEGER
 	);`
 
 const sql_insert_artist = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
-const sql_insert_album = `INSERT OR IGNORE INTO Album(name, artist)
+const sql_insert_album = `INSERT OR IGNORE INTO Album(name, artist_id)
 		VALUES (?,
 				(SELECT ID FROM Artist WHERE name = ?));`
 
 const sql_add_track = `INSERT INTO Track(
 	path,
 	title,
-	trackalbum,
+	album_id,
 	tracknumber,
 	year,
 	length,
@@ -54,7 +54,7 @@ const sql_update_timestamp = "UPDATE Track SET dbmtime = ? WHERE path = ?;"
 
 const sql_update_track = `UPDATE Track SET
 	title       = ?,
-	trackalbum  = (SELECT ID FROM Album  WHERE name = ?),
+	album_id    = (SELECT ID FROM Album  WHERE name = ?),
 	tracknumber = ?,
 	year        = ?,
 	length		= ?,

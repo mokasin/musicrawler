@@ -17,59 +17,72 @@
 package index
 
 // Define artist model.
-type Artists struct {
+type Albums struct {
 	Model
 }
 
-func NewArtists(index *Index) *Artists {
+func NewAlbums(index *Index) *Albums {
 	// feed it with index and table name
-	return &Artists{Model: *NewModel(index, "artist")}
+	return &Albums{Model: *NewModel(index, "album")}
 }
 
 // Define scheme of artist entry.
-type Artist struct {
-	Id   int    `column:"ID" set:"0"`
-	Name string `column:"name"`
+type Album struct {
+	Id       int    `column:"ID" set:"0"`
+	Name     string `column:"name"`
+	ArtistID int    `column:"artist_id"`
+
+	Index *Index
 }
 
-func (a *Artists) Exec() (*[]Artist, error) {
-	var ar []Artist
+func (a *Album) Artist() (*Artist, error) {
+	artists, err := a.Index.Artists.Find(a.ArtistID).Exec()
+
+	if len(*artists) > 0 {
+		return &((*artists)[0]), err
+	}
+
+	return nil, err
+}
+
+func (a *Albums) Exec() (*[]Album, error) {
+	var ar []Album
 	err := a.Model.Exec(&ar)
 	return &ar, err
 }
 
 // Wrappers for convinence.
-func (a *Artists) All() *Artists {
+func (a *Albums) All() *Albums {
 	a.Model.All()
 	return a
 }
 
-func (a *Artists) Find(ID int) *Artists {
+func (a *Albums) Find(ID int) *Albums {
 	a.Model.Find(ID)
 	return a
 }
 
-func (a *Artists) Where(query string, args ...interface{}) *Artists {
+func (a *Albums) Where(query string, args ...interface{}) *Albums {
 	a.Model.Where(query, args...)
 	return a
 }
 
-func (a *Artists) WhereQ(query Query) *Artists {
+func (a *Albums) WhereQ(query Query) *Albums {
 	a.Model.WhereQ(query)
 	return a
 }
 
-func (a *Artists) Like(query Query) *Artists {
+func (a *Albums) Like(query Query) *Albums {
 	a.Model.Like(query)
 	return a
 }
 
-func (a *Artists) Limit(number int) *Artists {
+func (a *Albums) Limit(number int) *Albums {
 	a.Model.Limit(number)
 	return a
 }
 
-func (a *Artists) OrderBy(column string) *Artists {
+func (a *Albums) OrderBy(column string) *Albums {
 	a.Model.OrderBy(column)
 	return a
 }
