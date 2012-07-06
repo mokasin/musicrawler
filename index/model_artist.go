@@ -30,6 +30,12 @@ func NewArtists(index *Index) *Artists {
 type Artist struct {
 	Id   int    `column:"ID" set:"0"`
 	Name string `column:"name"`
+
+	Index *Index
+}
+
+func (a *Artist) Albums() *Albums {
+	return a.Index.Albums.Where("artist_id = ?", a.Id)
 }
 
 func (a *Artists) Exec() (*[]Artist, error) {
@@ -59,8 +65,8 @@ func (a *Artists) WhereQ(query Query) *Artists {
 	return a
 }
 
-func (a *Artists) Like(query Query) *Artists {
-	a.Model.Like(query)
+func (a *Artists) LikeQ(query Query) *Artists {
+	a.Model.LikeQ(query)
 	return a
 }
 

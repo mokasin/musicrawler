@@ -45,6 +45,10 @@ func (a *Album) Artist() (*Artist, error) {
 	return nil, err
 }
 
+func (a *Album) Tracks() *Tracks {
+	return a.Index.Tracks.Where("album_id = ?", a.Id)
+}
+
 func (a *Albums) Exec() (*[]Album, error) {
 	var ar []Album
 	err := a.Model.Exec(&ar)
@@ -72,8 +76,8 @@ func (a *Albums) WhereQ(query Query) *Albums {
 	return a
 }
 
-func (a *Albums) Like(query Query) *Albums {
-	a.Model.Like(query)
+func (a *Albums) LikeQ(query Query) *Albums {
+	a.Model.LikeQ(query)
 	return a
 }
 

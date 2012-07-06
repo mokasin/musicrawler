@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"time"
 )
 
 type Query map[string]interface{}
@@ -50,6 +51,9 @@ type Model struct {
 
 	tx     *sql.Tx
 	txOpen bool // flag true, when exists an open transaction
+	timer  time.Time
+
+	Duration time.Duration
 
 	state
 }
@@ -69,10 +73,10 @@ func (m *Model) Name() string {
 }
 
 /*
-*
-*	ENCODING AND DECODING
-*	MAP <-> STRUCT
-*
+ *
+ *	ENCODING AND DECODING
+ *	MAP <-> STRUCT
+ *
  */
 
 // Encode eats a pointer to a struct src and converts all exported fields into a
@@ -206,9 +210,9 @@ func (m *Model) DecodeAll(src []Result, dest interface{}) error {
 }
 
 /*
-*
-*	BASIC DATABASE ACCESS
-*
+ *
+ *	BASIC DATABASE ACCESS
+ *
  */
 
 // BeginTransaction starts a new database transaction.
@@ -324,6 +328,9 @@ func (m *Model) Exec(dest interface{}) error {
 	m.st = stStart
 	m.state.err = nil
 
+	//TIME
+	m.timer = time.Now()
+
 	res, err := m.Query(m.sql, m.state.args...)
 	if err != nil {
 		return err
@@ -337,13 +344,15 @@ func (m *Model) Exec(dest interface{}) error {
 		return err
 	}
 
+	m.Duration = time.Since(m.timer)
+
 	return err
 }
 
 /*
-*
-*	HELPER FUNCTIONS
-*
+ *
+ *	HELPER FUNCTIONS
+ *
  */
 
 // Count returns the number of all database entries of this model.
@@ -450,22 +459,30 @@ func (m *Model) Find(ID int) *Model {
 
 // Where TODO: Documentation needed.
 func (m *Model) Where(query string, args ...interface{}) *Model {
-	if m.st != stStart {
+	switch m.st {
+	case stStart:
+		m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), query)
+	case stWhere, stLike:
+		m.state.sql += " AND " + query
+	default:
 		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
 		return nil
 	}
 
 	m.st = stWhere
-
-	m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), query)
-	m.state.args = args
+	m.state.args = append(m.state.args, args...)
 
 	return m
 }
 
 // Where TODO: Documentation needed.
 func (m *Model) WhereQ(query Query) *Model {
-	if m.st != stStart {
+	switch m.st {
+	case stStart:
+		m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE ", m.Name())
+	case stWhere, stLike:
+		m.state.sql += " AND "
+	default:
 		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
 		return nil
 	}
@@ -484,20 +501,25 @@ func (m *Model) WhereQ(query Query) *Model {
 	}
 	where = where[:len(where)-5]
 
-	m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), where)
-	m.state.args = vals
+	m.state.sql += where
+	m.state.args = append(m.state.args, vals...)
 
 	return m
 }
 
 // Where TODO: Documentation needed.
-func (m *Model) Like(query Query) *Model {
-	if m.st != stStart {
+func (m *Model) LikeQ(query Query) *Model {
+	switch m.st {
+	case stStart:
+		m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE ", m.Name())
+	case stWhere, stLike:
+		m.state.sql += " AND "
+	default:
 		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
 		return nil
 	}
 
-	m.st = stLike
+	m.st = stWhere
 
 	var where string
 
@@ -511,10 +533,11 @@ func (m *Model) Like(query Query) *Model {
 	}
 	where = where[:len(where)-5]
 
-	m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), where)
-	m.state.args = vals
+	m.state.sql += where
+	m.state.args = append(m.state.args, vals...)
 
 	return m
+
 }
 
 // Limit limits the number of returned rows to number.
@@ -549,9 +572,9 @@ func (m *Model) OrderBy(column string) *Model {
 }
 
 /*
-*
-*	DEFINITIONS
-*
+ *
+ *	DEFINITIONS
+ *
  */
 // Error types
 

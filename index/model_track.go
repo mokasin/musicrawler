@@ -54,6 +54,14 @@ func (t *Track) Album() (*Album, error) {
 	return nil, err
 }
 
+func (t *Track) Artist() (*Artist, error) {
+	ar, err := t.Album()
+	if err != nil {
+		return nil, err
+	}
+	return ar.Artist()
+}
+
 func (t *Tracks) Exec() (*[]Track, error) {
 	var ar []Track
 	err := t.Model.Exec(&ar)
@@ -81,8 +89,8 @@ func (t *Tracks) WhereQ(query Query) *Tracks {
 	return t
 }
 
-func (t *Tracks) Like(query Query) *Tracks {
-	t.Model.Like(query)
+func (t *Tracks) LikeQ(query Query) *Tracks {
+	t.Model.LikeQ(query)
 	return t
 }
 
