@@ -79,6 +79,7 @@ func (i *Index) createDatabase() error {
 	sqls := []string{
 		sql_create_artist,
 		sql_create_album,
+		sql_create_album_index,
 		sql_create_track,
 	}
 
@@ -133,7 +134,6 @@ func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	_, err = stmtAddTrack.Exec(
 		track.Path(),
 		tag.Title,
-		tag.Artist,
 		tag.Album,
 		tag.Track,
 		tag.Year,

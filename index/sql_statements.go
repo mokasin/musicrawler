@@ -14,6 +14,8 @@ const sql_create_album = `
 		name TEXT,
 		artist INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
 	);`
+const sql_create_album_index = `
+	CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist);`
 const sql_create_track = `
 	CREATE TABLE Track
 	(
@@ -30,16 +32,9 @@ const sql_create_track = `
 	);`
 
 const sql_insert_artist = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
-const sql_insert_album = `INSERT OR FAIL INTO Album(name, artist)
+const sql_insert_album = `INSERT OR IGNORE INTO Album(name, artist)
 		VALUES (?,
 				(SELECT ID FROM Artist WHERE name = ?));`
-
-//const sql_insert_album = `INSERT INTO Album(name, artist) 
-//VALUES (?, (SELECT id FROM Artist WHERE name = ?))
-//WHERE NOT EXISTS (
-//	SELECT al.name, ar.artist FROM Album al
-//	JOIN Artist ar ON al.artist = ar.id
-//);`
 
 const sql_add_track = `INSERT INTO Track(
 	path,
