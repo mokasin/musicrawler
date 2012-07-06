@@ -33,7 +33,6 @@ const (
 	stOrder
 	stOrderedDsc
 	stLimit
-	stExecuted
 )
 
 type state struct {
@@ -240,29 +239,29 @@ func (m *Model) EndTransaction() error {
 }
 
 // Query TODO: Documentation needed.
-func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
+func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 	if !m.txOpen {
 		err := m.BeginTransaction()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer m.EndTransaction()
 	}
 
-	fmt.Printf("QUERY: %s :: ", fmt.Sprintf(sql, "*"))
+	fmt.Printf("QUERY: %s :: ", sql)
 	fmt.Println(args...)
 
 	// do the actual query
-	rows, err := m.tx.Query(fmt.Sprintf(sql, "*"), args...)
+	rows, err := m.tx.Query(sql, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
 	// find out about the columns in the database
 	columns, err := rows.Columns()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// prepare result
@@ -280,7 +279,7 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 	// read out columns and save them in a Result map
 	for rows.Next() {
 		if err := rows.Scan(col_args...); err != nil {
-			return err
+			return nil, err
 		}
 
 		res := make(Result)
@@ -292,13 +291,7 @@ func (m *Model) Query(dest interface{}, sql string, args ...interface{}) error {
 		result = append(result, res)
 	}
 
-	// writing result into structs given by the caller
-	err = m.DecodeAll(result, dest)
-	if err != nil {
-		return err
-	}
-
-	return rows.Err()
+	return result, rows.Err()
 }
 
 // Execute just executes sql query in global transaction.
@@ -331,7 +324,20 @@ func (m *Model) Exec(dest interface{}) error {
 	m.st = stStart
 	m.state.err = nil
 
-	return m.Query(dest, m.sql, m.args...)
+	res, err := m.Query(m.sql, m.state.args...)
+	if err != nil {
+		return err
+	}
+
+	m.state.args = make([]interface{}, 0)
+
+	// writing result into structs given by the caller
+	err = m.DecodeAll(res, dest)
+	if err != nil {
+		return err
+	}
+
+	return err
 }
 
 /*
@@ -358,6 +364,43 @@ func (m *Model) Count() (count int) {
 	}
 
 	return count
+}
+
+// Letters returns string of first letters in the column named column.
+func (m *Model) Letters(column string) (string, error) {
+	if m.st == stStart {
+		return "", fmt.Errorf("Cannot call Letters() on state %d.", m.st)
+	}
+
+	if m.state.err != nil {
+		return "", m.state.err
+	}
+
+	query := fmt.Sprintf("SELECT DISTINCT SUBSTR(UPPER(%s),1,1) FROM (%s)",
+		column, m.state.sql)
+
+	m.st = stStart
+	m.state.err = nil
+	m.state.sql = ""
+
+	res, err := m.Query(query, m.state.args...)
+	if err != nil {
+		return "", err
+	}
+
+	m.state.args = make([]interface{}, 0)
+
+	var s string
+	for i := 0; i < len(res); i++ {
+		v, ok := res[i][fmt.Sprintf("SUBSTR(UPPER(%s),1,1)", column)].(string)
+		if !ok {
+			return "", fmt.Errorf("Result is no string.")
+		}
+
+		s += v
+	}
+
+	return s, nil
 }
 
 // Create creates a new database instance (row) of model.
@@ -395,7 +438,7 @@ func (m *Model) All() *Model {
 	}
 
 	m.st = stAll
-	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s", m.Name())
+	m.state.sql = fmt.Sprintf("SELECT * FROM %s", m.Name())
 
 	return m
 }
@@ -414,7 +457,7 @@ func (m *Model) Where(query string, args ...interface{}) *Model {
 
 	m.st = stWhere
 
-	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), query)
+	m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), query)
 	m.state.args = args
 
 	return m
@@ -441,7 +484,7 @@ func (m *Model) WhereQ(query Query) *Model {
 	}
 	where = where[:len(where)-5]
 
-	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where)
+	m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), where)
 	m.state.args = vals
 
 	return m
@@ -468,7 +511,7 @@ func (m *Model) Like(query Query) *Model {
 	}
 	where = where[:len(where)-5]
 
-	m.state.sql = fmt.Sprintf("SELECT %%s FROM %s WHERE %s", m.Name(), where)
+	m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), where)
 	m.state.args = vals
 
 	return m
