@@ -43,15 +43,18 @@ func updateTracks() {
 	counter := 0
 	for status := range statusChannel {
 		counter++
-		if *vverbosity {
-			if status.Err != nil {
+		if status.Err != nil {
+			if *vverbosity {
 				fmt.Printf("%6d: %s, INDEX ERROR (%s): %v\n", counter,
 					actionMsg[status.Action], status.Path, status.Err)
-				errors++
-			} else {
+			}
+			errors++
+		} else {
+			if *vverbosity {
 				fmt.Printf("%6d: %s, %s\n", counter,
 					actionMsg[status.Action], status.Path)
 			}
+
 			switch status.Action {
 			case index.TRACK_UPDATE:
 				updated++
