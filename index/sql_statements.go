@@ -1,36 +1,5 @@
 package index
 
-// SQL queries to create the database schema
-const sql_create_artist = `
-	CREATE TABLE Artist
-	(
-		ID   INTEGER  NOT NULL PRIMARY KEY,
-		name TEXT     UNIQUE
-	);`
-const sql_create_album = `
-	CREATE TABLE Album
-	(
-		ID   INTEGER NOT NULL PRIMARY KEY,
-		name TEXT,
-		artist_id INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
-	);`
-const sql_create_album_index = `
-	CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);`
-const sql_create_track = `
-	CREATE TABLE Track
-	(
-		ID INTEGER NOT NULL PRIMARY KEY,
-		path        TEXT NOT NULL,
-		title       TEXT,
-		tracknumber INTEGER,
-		year        INTEGER,
-		length      INTEGER,
-		genre       TEXT,
-		album_id	INTEGER	REFERENCES Album(ID) ON DELETE SET NULL,
-		filemtime	INTEGER,
-		dbmtime		INTEGER
-	);`
-
 const sql_insert_artist = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
 const sql_insert_album = `INSERT OR IGNORE INTO Album(name, artist_id)
 		VALUES (?,

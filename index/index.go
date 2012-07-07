@@ -18,6 +18,7 @@ package index
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
 )
@@ -56,17 +57,17 @@ func NewIndex(filename string) (*Index, error) {
 		return nil, err
 	}
 
+	// initializing members
+	i.Artists = NewArtists(i)
+	i.Albums = NewAlbums(i)
+	i.Tracks = NewTracks(i)
+
 	// If databsae file does not exist
 	if newdatabase {
 		if err := i.createDatabase(); err != nil {
 			return nil, err
 		}
 	}
-
-	// initializing members
-	i.Artists = NewArtists(i)
-	i.Albums = NewAlbums(i)
-	i.Tracks = NewTracks(i)
 
 	return i, nil
 }
@@ -82,26 +83,24 @@ func (i *Index) Close() {
 
 // Creates the basic database structure.
 func (i *Index) createDatabase() error {
-	sqls := []string{
-		sql_create_artist,
-		sql_create_album,
-		sql_create_album_index,
-		sql_create_track,
+	if err := i.BeginTransaction(); err != nil {
+		return err
 	}
+	defer i.EndTransaction()
 
-	tx, err := i.db.Begin()
-	if err != nil {
+	if err := i.Artists.CreateDatabase(); err != nil {
 		return err
 	}
 
-	for _, sql := range sqls {
-		_, err := tx.Exec(sql)
-		if err != nil {
-			return err
-		}
+	if err := i.Albums.CreateDatabase(); err != nil {
+		return err
 	}
 
-	return tx.Commit()
+	if err := i.Tracks.CreateDatabase(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // BeginTransaction starts a new database transaction.
@@ -109,6 +108,9 @@ func (i *Index) BeginTransaction() (err error) {
 	if i.txOpen {
 		return &ErrExistingTransaction{}
 	}
+
+	// Just for debugging
+	fmt.Println("->NEW TRANSACTION")
 
 	i.tx, err = i.db.Begin()
 	if err != nil {
@@ -127,6 +129,9 @@ func (i *Index) EndTransaction() error {
 	}
 
 	i.txOpen = false
+
+	// Just for debugging
+	fmt.Println("<-END TRANSACTION")
 
 	return i.tx.Commit()
 }

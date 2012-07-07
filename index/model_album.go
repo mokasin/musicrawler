@@ -26,6 +26,21 @@ func NewAlbums(index *Index) *Albums {
 	return &Albums{Model: *NewModel(index, "album")}
 }
 
+func (a *Albums) CreateDatabase() error {
+	err := a.Execute(`CREATE TABLE Album
+	(  ID   INTEGER NOT NULL PRIMARY KEY,
+	   name TEXT,
+	   artist_id INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
+	);`)
+
+	if err != nil {
+		return err
+	}
+
+	return a.Execute(
+		"CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);")
+}
+
 // Define scheme of artist entry.
 type Album struct {
 	Item
@@ -83,6 +98,11 @@ func (a *Albums) LikeQ(query Query) *Albums {
 
 func (a *Albums) Limit(number int) *Albums {
 	a.Model.Limit(number)
+	return a
+}
+
+func (a *Albums) Offset(offset int) *Albums {
+	a.Model.Offset(offset)
 	return a
 }
 

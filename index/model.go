@@ -38,6 +38,7 @@ const (
 	stOrder
 	stOrderedDsc
 	stLimit
+	stOffset
 )
 
 type state struct {
@@ -228,6 +229,7 @@ func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 		defer m.index.EndTransaction()
 	}
 
+	// Just for debugging
 	fmt.Printf("QUERY: %s :: ", sql)
 	fmt.Println(args...)
 
@@ -284,6 +286,7 @@ func (m *Model) Execute(sql string, args ...interface{}) error {
 		defer m.index.EndTransaction()
 	}
 
+	// Just for debugging
 	fmt.Printf("EXEC: %s :: ", sql)
 	fmt.Println(args...)
 
@@ -528,6 +531,22 @@ func (m *Model) Limit(number int) *Model {
 	}
 
 	m.st = stLimit
+
+	return m
+}
+
+// Offset returns rows with an offset offset.
+func (m *Model) Offset(offset int) *Model {
+	switch m.st {
+	case stAll, stWhere, stLike, stOrder, stLimit:
+		m.state.sql += " OFFSET ?"
+		m.state.args = append(m.state.args, offset)
+	default:
+		m.state.err = fmt.Errorf("Cannot call Offset() on state %d.", m.st)
+		return nil
+	}
+
+	m.st = stOffset
 
 	return m
 }

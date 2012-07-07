@@ -26,6 +26,13 @@ func NewArtists(index *Index) *Artists {
 	return &Artists{Model: *NewModel(index, "artist")}
 }
 
+func (a *Artists) CreateDatabase() error {
+	return a.Execute(`CREATE TABLE Artist
+	( ID   INTEGER  NOT NULL PRIMARY KEY,
+	  name TEXT     UNIQUE
+	);`)
+}
+
 // Define scheme of artist entry.
 type Artist struct {
 	Item
@@ -72,6 +79,11 @@ func (a *Artists) LikeQ(query Query) *Artists {
 
 func (a *Artists) Limit(number int) *Artists {
 	a.Model.Limit(number)
+	return a
+}
+
+func (a *Artists) Offset(offset int) *Artists {
+	a.Model.Offset(offset)
 	return a
 }
 

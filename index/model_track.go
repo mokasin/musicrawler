@@ -26,6 +26,21 @@ func NewTracks(index *Index) *Tracks {
 	return &Tracks{Model: *NewModel(index, "track")}
 }
 
+func (t *Tracks) CreateDatabase() error {
+	return t.Execute(`CREATE TABLE Track
+	( ID          INTEGER NOT NULL PRIMARY KEY,
+	  path        TEXT NOT NULL,
+	  title       TEXT,
+	  tracknumber INTEGER,
+	  year        INTEGER,
+	  length      INTEGER,
+	  genre       TEXT,
+	  album_id    INTEGER REFERENCES Album(ID) ON DELETE SET NULL,
+	  filemtime	  INTEGER,
+	  dbmtime     INTEGER
+    );`)
+}
+
 // Define scheme of artist entry.
 type Track struct {
 	Item
@@ -94,6 +109,11 @@ func (t *Tracks) LikeQ(query Query) *Tracks {
 
 func (t *Tracks) Limit(number int) *Tracks {
 	t.Model.Limit(number)
+	return t
+}
+
+func (t *Tracks) Offset(offset int) *Tracks {
+	t.Model.Offset(offset)
 	return t
 }
 
