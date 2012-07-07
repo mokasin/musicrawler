@@ -28,11 +28,11 @@ func NewAlbums(index *Index) *Albums {
 
 // Define scheme of artist entry.
 type Album struct {
+	Item
+
 	Id       int    `column:"ID" set:"0"`
 	Name     string `column:"name"`
 	ArtistID int    `column:"artist_id"`
-
-	Index *Index
 }
 
 func (a *Album) Artist() (*Artist, error) {

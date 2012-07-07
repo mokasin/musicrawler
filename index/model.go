@@ -23,6 +23,11 @@ import (
 	"time"
 )
 
+// Defines one item, that is return by an model.
+type Item struct {
+	Index *Index
+}
+
 type Query map[string]interface{}
 type Result map[string]interface{}
 
@@ -100,7 +105,9 @@ func (m *Model) Encode(src interface{}) (Result, error) {
 		}
 
 		// check struct's tag if value should be set (!= "0")
-		if t.Field(i).Tag.Get("set") != "0" {
+		// and just use fields with tag
+		if t.Field(i).Tag.Get("set") != "0" &&
+			t.Field(i).Tag.Get("column") != "" {
 			res[t.Field(i).Tag.Get("column")] = v.Field(i).Interface()
 		}
 	}
@@ -127,8 +134,8 @@ func (m *Model) Decode(src Result, dest interface{}) error {
 		}
 
 		// Give it a pointer to the index. This is a little bit ugly.
-		if t.Field(i).Name == "Index" {
-			v.Field(i).Set(reflect.ValueOf(m.index))
+		if t.Field(i).Name == "Item" {
+			v.Field(i).FieldByName("Index").Set(reflect.ValueOf(m.index))
 			continue
 		}
 

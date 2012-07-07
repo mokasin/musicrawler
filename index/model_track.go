@@ -28,6 +28,8 @@ func NewTracks(index *Index) *Tracks {
 
 // Define scheme of artist entry.
 type Track struct {
+	Item
+
 	Id          int    `column:"ID" set:"0"`
 	Path        string `column:"path"`
 	Title       string `column:"title"`
@@ -38,10 +40,6 @@ type Track struct {
 	AlbumID     int    `column:"album_id"`
 	Filemtime   int    `column:"filemtime"`
 	DBMtime     int    `column:"dbmtime"`
-
-	// Don't like it, that this is public. But otherwise it wouldn't be settable
-	// by reflection.
-	Index *Index
 }
 
 func (t *Track) Album() (*Album, error) {

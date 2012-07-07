@@ -28,10 +28,10 @@ func NewArtists(index *Index) *Artists {
 
 // Define scheme of artist entry.
 type Artist struct {
+	Item
+
 	Id   int    `column:"ID" set:"0"`
 	Name string `column:"name"`
-
-	Index *Index
 }
 
 func (a *Artist) Albums() *Albums {
