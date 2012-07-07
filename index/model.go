@@ -17,7 +17,6 @@
 package index
 
 import (
-	"database/sql"
 	"fmt"
 	"reflect"
 	"time"
@@ -54,10 +53,7 @@ type Model struct {
 	index *Index
 	name  string // name of table
 
-	tx     *sql.Tx
-	txOpen bool // flag true, when exists an open transaction
-	timer  time.Time
-
+	timer    time.Time
 	Duration time.Duration
 
 	state
@@ -222,48 +218,21 @@ func (m *Model) DecodeAll(src []Result, dest interface{}) error {
  *
  */
 
-// BeginTransaction starts a new database transaction.
-func (m *Model) BeginTransaction() (err error) {
-	if m.txOpen {
-		return &ErrExistingTransaction{}
-	}
-
-	m.tx, err = m.index.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	m.txOpen = true
-
-	return nil
-}
-
-// EndTransaction closes a opened database transaction.
-func (m *Model) EndTransaction() error {
-	if !m.txOpen {
-		return &ErrNoOpenTransaction{}
-	}
-
-	m.txOpen = false
-
-	return m.tx.Commit()
-}
-
 // Query TODO: Documentation needed.
 func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
-	if !m.txOpen {
-		err := m.BeginTransaction()
+	if !m.index.txOpen {
+		err := m.index.BeginTransaction()
 		if err != nil {
 			return nil, err
 		}
-		defer m.EndTransaction()
+		defer m.index.EndTransaction()
 	}
 
 	fmt.Printf("QUERY: %s :: ", sql)
 	fmt.Println(args...)
 
 	// do the actual query
-	rows, err := m.tx.Query(sql, args...)
+	rows, err := m.index.tx.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -307,18 +276,18 @@ func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 
 // Execute just executes sql query in global transaction.
 func (m *Model) Execute(sql string, args ...interface{}) error {
-	if !m.txOpen {
-		err := m.BeginTransaction()
+	if !m.index.txOpen {
+		err := m.index.BeginTransaction()
 		if err != nil {
 			return err
 		}
-		defer m.EndTransaction()
+		defer m.index.EndTransaction()
 	}
 
 	fmt.Printf("EXEC: %s :: ", sql)
 	fmt.Println(args...)
 
-	_, err := m.tx.Exec(sql, args...)
+	_, err := m.index.tx.Exec(sql, args...)
 	return err
 }
 
@@ -364,15 +333,15 @@ func (m *Model) Exec(dest interface{}) error {
 
 // Count returns the number of all database entries of this model.
 func (m *Model) Count() (count int) {
-	if !m.txOpen {
-		err := m.BeginTransaction()
+	if !m.index.txOpen {
+		err := m.index.BeginTransaction()
 		if err != nil {
 			return -1
 		}
-		defer m.EndTransaction()
+		defer m.index.EndTransaction()
 	}
 
-	err := m.tx.QueryRow(
+	err := m.index.tx.QueryRow(
 		fmt.Sprintf("SELECT COUNT(*) FROM %s", m.Name())).Scan(&count)
 
 	if err != nil {
@@ -584,16 +553,6 @@ func (m *Model) OrderBy(column string) *Model {
  *
  */
 // Error types
-
-type ErrNoOpenTransaction struct{}
-
-func (e *ErrNoOpenTransaction) Error() string { return "No open transaction." }
-
-type ErrExistingTransaction struct{}
-
-func (e *ErrExistingTransaction) Error() string {
-	return "There is an existing transaction."
-}
 
 type ErrWrongType struct{}
 

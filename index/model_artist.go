@@ -44,7 +44,7 @@ func (a *Artists) Exec() (*[]Artist, error) {
 	return &ar, err
 }
 
-// Wrappers for convinence.
+// Wrappers for convinence and type safety.
 func (a *Artists) All() *Artists {
 	a.Model.All()
 	return a

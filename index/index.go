@@ -19,15 +19,16 @@ package index
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
-	"musicrawler/source"
 	"os"
-	"time"
 )
 
 type Index struct {
 	Filename  string
 	db        *sql.DB
 	timestamp int64
+
+	tx     *sql.Tx // global transaction
+	txOpen bool    // flag true, when exists an open transaction
 
 	Artists *Artists
 	Albums  *Albums
@@ -103,258 +104,39 @@ func (i *Index) createDatabase() error {
 	return tx.Commit()
 }
 
-// Updates the timestamp if the track is in the database. The timestamp shows
-// the last time the entry was touched.
-func (i *Index) updateTrackTimestamp(track source.TrackInfo,
-	stmtUpdateTimestamp *sql.Stmt) error {
-	_, err := stmtUpdateTimestamp.Exec(i.timestamp, track.Path())
-	return err
-}
+// BeginTransaction starts a new database transaction.
+func (i *Index) BeginTransaction() (err error) {
+	if i.txOpen {
+		return &ErrExistingTransaction{}
+	}
 
-func (i *Index) insertArtistAlbum(tag *source.TrackTags, stmtInsertArtist *sql.Stmt,
-	stmtInsertAlbum *sql.Stmt) error {
-	if _, err := stmtInsertArtist.Exec(tag.Artist); err != nil {
+	i.tx, err = i.db.Begin()
+	if err != nil {
 		return err
 	}
 
-	if _, err := stmtInsertAlbum.Exec(tag.Album, tag.Artist); err != nil {
-		return err
-	}
+	i.txOpen = true
+
 	return nil
 }
 
-// Adds a track into the database using an existing transaction tx.
-func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
-	stmtInsertAlbum *sql.Stmt, stmtAddTrack *sql.Stmt) error {
-	tag, err := track.Tags()
-	if err != nil {
-		return err
+// EndTransaction closes a opened database transaction.
+func (i *Index) EndTransaction() error {
+	if !i.txOpen {
+		return &ErrNoOpenTransaction{}
 	}
 
-	// first make sure artist and album exist in database
-	if err := i.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
-		return err
-	}
+	i.txOpen = false
 
-	_, err = stmtAddTrack.Exec(
-		track.Path(),
-		tag.Title,
-		tag.Album,
-		tag.Track,
-		tag.Year,
-		tag.Length,
-		tag.Genre,
-		track.Mtime(),
-		i.timestamp,
-	)
-	return err
+	return i.tx.Commit()
 }
 
-// Update a changed track in the database using an existing transaction tx.
-func (i *Index) updateTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
-	stmtInsertAlbum *sql.Stmt, stmtUpdateTrack *sql.Stmt) error {
-	tag, err := track.Tags()
-	if err != nil {
-		return err
-	}
+type ErrNoOpenTransaction struct{}
 
-	// first make sure artist and album exist in database
-	if err := i.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
-		return err
-	}
+func (e *ErrNoOpenTransaction) Error() string { return "No open transaction." }
 
-	_, err = stmtUpdateTrack.Exec(
-		tag.Title,
-		tag.Artist,
-		tag.Album,
-		tag.Track,
-		tag.Year,
-		tag.Length,
-		tag.Genre,
-		track.Mtime(),
-		track.Path(),
-	)
-	return err
-}
+type ErrExistingTransaction struct{}
 
-// define databse actions
-const (
-	TRACK_NOUPDATE = iota
-	TRACK_UPDATE
-	TRACK_ADD
-)
-
-// Holds information of how the track at path was handeled. If the transaction
-// was successfully err is nil.
-type UpdateStatus struct {
-	Path   string
-	Action uint8
-	Err    error
-}
-
-// Holds information if the operation was successful.
-type UpdateResult struct {
-	Err error
-}
-
-// Update is a wrapper for update method, that should be called when using in a
-// goroutine.
-//
-// It makes sure everything is cleaned up nicely before the signal gets emmitted
-// to prevent racing conditions when closing the database connection.
-func (i *Index) Update(tracks <-chan source.TrackInfo, status chan<- *UpdateStatus,
-	result chan<- *UpdateResult) {
-	// signal is emitted, not untils index.Update() has cleaned up everything
-	result <- i.update(tracks, status)
-}
-
-// Updates or adds tracks that are received at the tracks channel.
-//
-// For every track a status update UpdateStatus is emitted to the status
-// channel. If the method finishes, the overall result is emitted on the result
-// channel.
-func (i *Index) update(tracks <-chan source.TrackInfo,
-	status chan<- *UpdateStatus) *UpdateResult {
-
-	// Get current time to set modify time of database entry
-	i.timestamp = time.Now().Unix()
-
-	tx, err := i.db.Begin()
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-
-	// get tracks that need to be updated
-	rows, err := tx.Prepare(
-		"SELECT path,filemtime FROM Track WHERE path = ?")
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-	defer rows.Close()
-
-	// prepare insert statements
-	stmtInsertArtist, err := tx.Prepare(sql_insert_artist)
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-	defer stmtInsertArtist.Close()
-
-	stmtInsertAlbum, err := tx.Prepare(sql_insert_album)
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-	defer stmtInsertAlbum.Close()
-
-	stmtUpdateTimestamp, err := tx.Prepare(sql_update_timestamp)
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-	defer stmtUpdateTimestamp.Close()
-
-	stmtAddTrack, err := tx.Prepare(sql_add_track)
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-	defer stmtAddTrack.Close()
-
-	stmtUpdateTrack, err := tx.Prepare(sql_update_track)
-	if err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-	defer stmtUpdateTrack.Close()
-
-	var trackAction uint8
-	var trackPath string
-	var trackMtime int64
-
-	// traverse all catched pathes and update or add database entries
-	for ti := range tracks {
-		var statusErr error
-
-		trackAction = TRACK_NOUPDATE
-
-		// check if mtime has changed and decide what to do
-		switch err := rows.QueryRow(ti.Path()).Scan(&trackPath,
-			&trackMtime); {
-		case err == nil: // track is in database
-			// update timestamp because file still exists
-			statusErr = i.updateTrackTimestamp(ti, stmtUpdateTimestamp)
-			if statusErr == nil {
-				// check if track has changed since the last time
-				if ti.Mtime() != trackMtime {
-					statusErr = i.updateTrack(ti, stmtInsertArtist,
-						stmtInsertAlbum, stmtUpdateTrack)
-					trackAction = TRACK_UPDATE
-				}
-			}
-		case err == sql.ErrNoRows: // track is not in database
-			// automatically update of timestamp when adding (performance)
-			statusErr = i.addTrack(ti, stmtInsertArtist, stmtInsertAlbum,
-				stmtAddTrack)
-			trackAction = TRACK_ADD
-		default:
-			// if something is wrong update timestamp, so track is not
-			// deleted the next time
-			statusErr = i.updateTrackTimestamp(ti, stmtUpdateTimestamp)
-		}
-
-		status <- &UpdateStatus{
-			Path:   ti.Path(),
-			Action: trackAction,
-			Err:    statusErr}
-	}
-
-	// commit transaction
-	if err := tx.Commit(); err != nil {
-		close(status)
-		return &UpdateResult{Err: err}
-	}
-
-	close(status)
-	return &UpdateResult{Err: nil}
-}
-
-// Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
-// entries in Artist and Album table that are not referenced anymore in the
-// Track-table.
-//
-// Returns the number of deleted rows and an error.
-func (i *Index) DeleteDanglingEntries() (int64, error) {
-	tx, err := i.db.Begin()
-	if err != nil {
-		return 0, err
-	}
-
-	r, err := tx.Exec("DELETE FROM Track WHERE dbmtime <> ?", i.timestamp)
-	deletedTracks, _ := r.RowsAffected()
-	if err != nil {
-		return deletedTracks, err
-	}
-
-	//TODO needs rework
-	if _, err := tx.Exec("DELETE FROM Artist WHERE ID IN " +
-		"(SELECT Artist.ID FROM Artist LEFT JOIN Track ON " +
-		"Artist.ID = Track.trackartist WHERE Track.trackartist " +
-		"IS NULL);"); err != nil {
-		return deletedTracks, err
-	}
-	if _, err := tx.Exec("DELETE FROM Album WHERE ID IN " +
-		"(SELECT Album.ID FROM Album LEFT JOIN Track ON " +
-		"Album.ID = Track.trackalbum WHERE Track.trackalbum " +
-		"IS NULL);"); err != nil {
-		return deletedTracks, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, err
-	}
-
-	return deletedTracks, nil
+func (e *ErrExistingTransaction) Error() string {
+	return "There is an existing transaction."
 }
