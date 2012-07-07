@@ -2,8 +2,8 @@ package index
 
 const sql_insert_artist = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
 const sql_insert_album = `INSERT OR IGNORE INTO Album(name, artist_id)
-		VALUES (?,
-				(SELECT ID FROM Artist WHERE name = ?));`
+	VALUES (?,
+			(SELECT ID FROM Artist WHERE name = ?));`
 
 const sql_add_track = `INSERT INTO Track(
 	path,

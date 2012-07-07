@@ -418,7 +418,7 @@ func (m *Model) Create(item interface{}) error {
 	return m.Execute(query, vals...)
 }
 
-// All TODO: Documentation needed.
+// All just returns all rows in table.
 func (m *Model) All() *Model {
 	if m.st != stStart {
 		m.state.err = fmt.Errorf("Can't call All() in state %d.", m.st)
@@ -431,18 +431,22 @@ func (m *Model) All() *Model {
 	return m
 }
 
-// Find TODO: Documentation needed.
+// Find returns row with id ID.
 func (m *Model) Find(ID int) *Model {
 	return m.WhereQ(Query{"ID": ID})
 }
 
-// Where TODO: Documentation needed.
-func (m *Model) Where(query string, args ...interface{}) *Model {
+// Where returns all rows that fullfil the constrictions given in constrictions.
+//
+// Example:
+// 
+// 		Where("column1 = ? AND column2 = ?", astring, bstring)
+func (m *Model) Where(constriction string, args ...interface{}) *Model {
 	switch m.st {
 	case stStart:
-		m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), query)
+		m.state.sql = fmt.Sprintf("SELECT * FROM %s WHERE %s", m.Name(), constriction)
 	case stWhere, stLike:
-		m.state.sql += " AND " + query
+		m.state.sql += " AND " + constriction
 	default:
 		m.state.err = fmt.Errorf("Can't call Where() on state %d.", m.st)
 		return nil
@@ -454,7 +458,13 @@ func (m *Model) Where(query string, args ...interface{}) *Model {
 	return m
 }
 
-// Where TODO: Documentation needed.
+// WhereQ returns all rows that fullfil the constrictions given in
+// constrictions.
+//
+// It is like the Where-method but takes a Query map as argument.
+// Example:
+//
+// 		WhereQ(Query{column1: astring, column2: bstring})
 func (m *Model) WhereQ(query Query) *Model {
 	switch m.st {
 	case stStart:
@@ -486,7 +496,12 @@ func (m *Model) WhereQ(query Query) *Model {
 	return m
 }
 
-// Where TODO: Documentation needed.
+// LikeQ returns all rows that fullfil the constrictions given in constrictions.
+//
+// It is like WhereQ, but the wildcard '%' is allowed in the query.
+// Example:
+//
+// 		Like(Query{column1: "Some%", column2: "%string%"})
 func (m *Model) LikeQ(query Query) *Model {
 	switch m.st {
 	case stStart:

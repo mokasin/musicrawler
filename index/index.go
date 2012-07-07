@@ -110,7 +110,7 @@ func (i *Index) BeginTransaction() (err error) {
 	}
 
 	// Just for debugging
-	fmt.Println("->NEW TRANSACTION")
+	fmt.Println("NEW TRANSACTION->")
 
 	i.tx, err = i.db.Begin()
 	if err != nil {
