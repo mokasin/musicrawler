@@ -44,6 +44,11 @@ Build
 Fetch go dependencies
 
 	$ go get
+	
+get external libs as git submodules
+
+	$ git submodule init
+	$ git submodule update
 
 and build it (on Linux) with
 
@@ -53,7 +58,7 @@ This compiles also less- and haml-files.
 
 To build with debug symbols just
 
-	$ go build
+	$ go install
 
 it yourself.
 
