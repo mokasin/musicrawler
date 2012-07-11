@@ -76,6 +76,7 @@ func updateTracks() {
 		deltaTime/float64(added+updated)*1000)
 }
 
+var version string
 var verbosity = flag.Bool("v", false, "be verbose")
 var vverbosity = flag.Bool("vv", false, "be very verbose")
 var sourceList *SourceList
@@ -98,6 +99,7 @@ func main() {
 	//}
 	////PROFILER END
 
+	fmt.Printf("musicrawler v. %s\n", version)
 	fmt.Println("-> Open database:", dbFileName)
 
 	// open or create database
