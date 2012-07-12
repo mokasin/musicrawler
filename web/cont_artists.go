@@ -17,12 +17,15 @@
 package web
 
 import (
+	"fmt"
 	"musicrawler/index"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
-type artistData struct {
+type nameURL struct {
 	Name string
 	URL  string
 }
@@ -31,7 +34,8 @@ type artistData struct {
 type ControllerArtists struct {
 	Controller
 
-	Artists    []artistData
+	Artists    []nameURL
+	Albums     []nameURL
 	Pager      []pager
 	Breadcrumb []pager
 }
@@ -54,29 +58,60 @@ func (c *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Select(w, r, string(letters[0]))
+	page := r.URL.Query().Get("page")
+
+	// just go to the first page by default
+	if page == "" {
+		c.byFirstLetter(w, r, rune(letters[0]))
+		return
+	}
+
+	// No request should contain more than 1 letter.
+	if len(page) != 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	c.byFirstLetter(w, r, rune(page[0]))
 }
 
-// Select shows a list of tracks sorted by artists und paged with first letter of
-// artist. Implementation of SelectHandler.
 func (c *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, selector string) {
+	id, err := strconv.Atoi(selector)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	tokens := ParseURL(selector)
+	artists, err := c.index.Artists.Find(id).Exec()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	if len(tokens[0]) > 1 {
+	if len(*artists) == 0 {
 		http.NotFound(w, r)
 		return
 	}
-	switch len(tokens) {
-	case 1:
-		c.byFirstLetter(w, r, rune(tokens[0][0]))
-	case 2:
-		c.byName(w, r, tokens[1])
-	default:
-		http.NotFound(w, r)
-		return
 
+	artist := (*artists)[0]
+	albums, err := artist.Albums().OrderBy("name").Exec()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	c.Albums = make([]nameURL, len(*albums))
+
+	// prepare structure for template
+	for i := 0; i < len(*albums); i++ {
+		c.Albums[i].Name = (*albums)[i].Name
+		c.Albums[i].URL = "#"
+	}
+
+	c.Breadcrumb = Breadcrump(r.URL.Path)
+
+	// render the website
+	renderInPage(w, "index", c.Tmpl("artist"), c, artist.Name)
 }
 
 func (c *ControllerArtists) generatePager(letters, active string) {
@@ -88,24 +123,10 @@ func (c *ControllerArtists) generatePager(letters, active string) {
 			c.Pager[i].Active = true
 		}
 		c.Pager[i].Label = string(letters[i])
-		c.Pager[i].Path = "/" + c.route + "/" + string(letters[i])
+		v := url.Values{}
+		v.Add("page", string(letters[i]))
+		c.Pager[i].Path = "/" + c.route + "?" + v.Encode()
 	}
-}
-
-// generateLinkToArtist takes an artist's name and spit out the link to it.
-func (c *ControllerArtists) linkToArtist(name string) string {
-	var letter string
-
-	// Remove slashes from artist's name
-	rep := strings.NewReplacer("/", "")
-
-	name = rep.Replace(name)
-
-	if len(name) != 0 {
-		letter = strings.ToUpper(string(name[0])) + "/"
-	}
-
-	return "/" + c.route + "/" + letter + name
 }
 
 // firstLetter shows a list of all artists whom's name starting with letter.
@@ -132,12 +153,12 @@ func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	c.Artists = make([]artistData, len(*artists))
+	c.Artists = make([]nameURL, len(*artists))
 
 	// prepare structure for template
 	for i := 0; i < len(*artists); i++ {
 		c.Artists[i].Name = (*artists)[i].Name
-		c.Artists[i].URL = c.linkToArtist((*artists)[i].Name)
+		c.Artists[i].URL = fmt.Sprintf("/%s/%d", c.route, (*artists)[i].Id)
 	}
 
 	c.generatePager(letters, string(letter))
@@ -146,7 +167,4 @@ func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request
 	// render the website
 	renderInPage(w, "index", c.Tmpl("artists"), c,
 		"Artists starting with"+string(letter))
-}
-
-func (c *ControllerArtists) byName(w http.ResponseWriter, r *http.Request, name string) {
 }

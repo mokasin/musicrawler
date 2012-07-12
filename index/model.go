@@ -229,10 +229,6 @@ func (m *Model) Query(sql string, args ...interface{}) ([]Result, error) {
 		defer m.index.EndTransaction()
 	}
 
-	// Just for debugging
-	fmt.Printf("QUERY: %s :: ", sql)
-	fmt.Println(args...)
-
 	// do the actual query
 	rows, err := m.index.tx.Query(sql, args...)
 	if err != nil {
@@ -285,10 +281,6 @@ func (m *Model) Execute(sql string, args ...interface{}) error {
 		}
 		defer m.index.EndTransaction()
 	}
-
-	// Just for debugging
-	fmt.Printf("EXEC: %s :: ", sql)
-	fmt.Println(args...)
 
 	_, err := m.index.tx.Exec(sql, args...)
 	return err

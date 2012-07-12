@@ -97,7 +97,7 @@ func (r *Router) AddRoute(resource string, controller interface{}) {
 	r.routes[resource] = controller
 
 	http.HandleFunc(
-		"/"+resource+"/",
+		"/"+resource,
 		func(w http.ResponseWriter, req *http.Request) {
 			r.routeHandler(w, req)
 		},

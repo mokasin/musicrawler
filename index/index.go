@@ -18,7 +18,6 @@ package index
 
 import (
 	"database/sql"
-	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
 )
@@ -109,9 +108,6 @@ func (i *Index) BeginTransaction() (err error) {
 		return &ErrExistingTransaction{}
 	}
 
-	// Just for debugging
-	fmt.Println("NEW TRANSACTION->")
-
 	i.tx, err = i.db.Begin()
 	if err != nil {
 		return err
@@ -129,9 +125,6 @@ func (i *Index) EndTransaction() error {
 	}
 
 	i.txOpen = false
-
-	// Just for debugging
-	fmt.Println("<-END TRANSACTION")
 
 	return i.tx.Commit()
 }
