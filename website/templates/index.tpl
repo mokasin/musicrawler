@@ -25,12 +25,10 @@
 					<a class="brand" href="#">musicrawler</a>
 					<div class="nav-collapse">
 						<ul class="nav">
-							<li class="active">
-								<a href="#">Home</a>
-							</li>
 							<li>
-								<a href="#about">About</a>
+								<a href="/">Home</a>
 							</li>
+							<li><a href="/artist">Artists</a></li>
 						</ul>
 					</div>
 				</div>

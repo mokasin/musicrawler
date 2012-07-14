@@ -32,11 +32,16 @@ type SelectHandler interface {
 }
 
 type Router struct {
-	routes map[string]interface{}
+	routes       map[string]interface{}
+	defaultRoute string
 }
 
 func NewRouter() *Router {
 	return &Router{routes: make(map[string]interface{})}
+}
+
+func (self *Router) SetDefaultRoute(dr string) {
+	self.defaultRoute = dr
 }
 
 func NotImplemented(w http.ResponseWriter) {
@@ -49,7 +54,7 @@ func ParseURL(path string) []string {
 }
 
 // routeHandler calls appropriate methods of controller depending on the path.
-func (r *Router) routeHandler(w http.ResponseWriter, req *http.Request) {
+func (self *Router) routeHandler(w http.ResponseWriter, req *http.Request) {
 	var resource, selector string
 
 	path := strings.Trim(req.URL.Path, "/")
@@ -63,7 +68,11 @@ func (r *Router) routeHandler(w http.ResponseWriter, req *http.Request) {
 		selector = path[pos+1:]
 	}
 
-	route, ok := r.routes[resource]
+	if resource == "" && self.defaultRoute != "" {
+		resource = self.defaultRoute
+	}
+
+	route, ok := self.routes[resource]
 	if !ok {
 		http.NotFound(w, req)
 		return
@@ -93,13 +102,13 @@ func (r *Router) routeHandler(w http.ResponseWriter, req *http.Request) {
 
 // AddRoute registers a new route from a resource specified in an path to a
 // controller.
-func (r *Router) AddRoute(resource string, controller interface{}) {
-	r.routes[resource] = controller
+func (self *Router) AddRoute(resource string, controller interface{}) {
+	self.routes[resource] = controller
 
 	http.HandleFunc(
 		"/"+resource,
 		func(w http.ResponseWriter, req *http.Request) {
-			r.routeHandler(w, req)
+			self.routeHandler(w, req)
 		},
 	)
 }

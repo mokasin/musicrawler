@@ -58,12 +58,14 @@ func NewHTTPTrackServer(i *index.Database, stat chan<- *Status) *HTTPTrackServer
 }
 
 // Starts http server on port 8080 and set routes.
-func (h *HTTPTrackServer) StartListing() {
+func (self *HTTPTrackServer) StartListing() {
 	// Adding routes
 
-	h.router.AddRoute("artist", NewControllerArtists(h.db, "artist"))
-	h.router.AddRoute("album", NewControllerAlbums(h.db, "album"))
-	h.router.AddRoute("content", NewControllerContent(h.db, "content"))
+	self.router.AddRoute("artist", NewControllerArtists(self.db, "artist"))
+	self.router.AddRoute("album", NewControllerAlbums(self.db, "album"))
+	self.router.AddRoute("content", NewControllerContent(self.db, "content"))
+
+	self.router.SetDefaultRoute("artist")
 
 	// Just serve the assets.
 	http.Handle("/assets/",
@@ -71,7 +73,7 @@ func (h *HTTPTrackServer) StartListing() {
 
 	// let the router handle the rest
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		h.router.routeHandler(w, req)
+		self.router.routeHandler(w, req)
 	})
 
 	// and start the server.
