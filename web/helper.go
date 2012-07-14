@@ -18,17 +18,20 @@ package web
 
 import "strings"
 
-// Model of a simple pager.
-type pager struct {
-	Label  string
-	Path   string
+type link struct {
+	Label string
+	Path  string
+}
+
+type activelink struct {
+	link
 	Active bool
 }
 
-func Breadcrump(path string) (r []pager) {
+func Breadcrump(path string) (r []activelink) {
 	tokens := ParseURL(path)
 
-	r = make([]pager, len(tokens))
+	r = make([]activelink, len(tokens))
 	for i := 0; i < len(tokens); i++ {
 		r[i].Label = tokens[i]
 		r[i].Path = "/" + strings.Join(tokens[:i+1], "/")

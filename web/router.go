@@ -31,11 +31,6 @@ type SelectHandler interface {
 	Select(http.ResponseWriter, *http.Request, string)
 }
 
-// ParseURL splits in subparts seperated by "/".
-func ParseURL(path string) []string {
-	return strings.Split(strings.Trim(path, "/"), "/")
-}
-
 type Router struct {
 	routes map[string]interface{}
 }
@@ -46,6 +41,11 @@ func NewRouter() *Router {
 
 func NotImplemented(w http.ResponseWriter) {
 	http.Error(w, "501 Not Implemented", http.StatusNotImplemented)
+}
+
+// ParseURL splits in subparts seperated by "/".
+func ParseURL(path string) []string {
+	return strings.Split(strings.Trim(path, "/"), "/")
 }
 
 // routeHandler calls appropriate methods of controller depending on the path.

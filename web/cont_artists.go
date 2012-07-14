@@ -25,19 +25,14 @@ import (
 	"strings"
 )
 
-type nameURL struct {
-	Name string
-	URL  string
-}
-
 // Controller to serve artists
 type ControllerArtists struct {
 	Controller
 
-	Artists    []nameURL
-	Albums     []nameURL
-	Pager      []pager
-	Breadcrumb []pager
+	Artists    []link
+	Albums     []link
+	Pager      []activelink
+	Breadcrumb []activelink
 }
 
 // Constructor.
@@ -111,12 +106,12 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	self.Albums = make([]nameURL, len(albums))
+	self.Albums = make([]link, len(albums))
 
 	// prepare structure for template
 	for i := 0; i < len(albums); i++ {
-		self.Albums[i].Name = albums[i].Name
-		self.Albums[i].URL = "#"
+		self.Albums[i].Label = albums[i].Name
+		self.Albums[i].Path = "#"
 	}
 
 	self.Breadcrumb = Breadcrump(r.URL.Path)
@@ -127,7 +122,7 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 
 func (self *ControllerArtists) generatePager(letters, active string) {
 	// creating pager
-	self.Pager = make([]pager, len(letters))
+	self.Pager = make([]activelink, len(letters))
 
 	for i := 0; i < len(letters); i++ {
 		if string(letters[i]) == active {
@@ -167,12 +162,12 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	self.Artists = make([]nameURL, len(artists))
+	self.Artists = make([]link, len(artists))
 
 	// prepare structure for template
 	for i := 0; i < len(artists); i++ {
-		self.Artists[i].Name = artists[i].Name
-		self.Artists[i].URL = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
+		self.Artists[i].Label = artists[i].Name
+		self.Artists[i].Path = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
 	}
 
 	self.generatePager(letters, string(letter))
