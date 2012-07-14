@@ -32,10 +32,6 @@ type TrackTags struct {
 	Length  int
 }
 
-func (tt *TrackTags) LengthString() string {
-	return fmt.Sprintf("%d:%02d", tt.Length/60, tt.Length%60)
-}
-
 // Basic information about a track.
 type TrackInfo interface {
 	Path() string

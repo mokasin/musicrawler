@@ -16,6 +16,8 @@
 
 package index
 
+import "fmt"
+
 func CreateTrackTable(db *Database) error {
 	return db.Execute(`CREATE TABLE Track
 	( ID          INTEGER NOT NULL PRIMARY KEY,
@@ -31,7 +33,7 @@ func CreateTrackTable(db *Database) error {
     );`)
 }
 
-// Define scheme of artist entry.
+// Define scheme of track entry.
 type Track struct {
 	Id          int    `column:"ID" set:"0"`
 	Path        string `column:"path"`
@@ -47,4 +49,9 @@ type Track struct {
 
 func (self *Track) AlbumQuery(db *Database) *Query {
 	return NewQuery(db, "album").Where("ID =", self.AlbumID)
+}
+
+// LengthString returns a nicely formatted string of the track's length.
+func (self *Track) LengthString() string {
+	return fmt.Sprintf("%d:%02d", self.Length/60, self.Length%60)
 }

@@ -28,7 +28,7 @@
 					<td>{{.Track.Title}}</td>
 					<td>{{.Track.Tracknumber}}</td>
 					<td>{{.Track.Year}}</td>
-					<td>{{.Track.Length}}</td>
+					<td>{{.Track.LengthString}}</td>
 				</tr>
 			{{end}}
 		</tbody>

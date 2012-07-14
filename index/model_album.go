@@ -27,11 +27,12 @@ func CreateAlbumTable(db *Database) error {
 		return err
 	}
 
+	// create tuple index to prevent double entries
 	return db.Execute(
 		"CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);")
 }
 
-// Define scheme of artist entry.
+// Define scheme of album entry.
 type Album struct {
 	Id       int    `column:"ID" set:"0"`
 	Name     string `column:"name"`
