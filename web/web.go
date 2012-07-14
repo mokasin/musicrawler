@@ -61,7 +61,8 @@ func NewHTTPTrackServer(i *index.Database, stat chan<- *Status) *HTTPTrackServer
 func (h *HTTPTrackServer) StartListing() {
 	// Adding routes
 
-	h.router.AddRoute("artists", NewControllerArtists(h.db, "artists"))
+	h.router.AddRoute("artist", NewControllerArtists(h.db, "artist"))
+	h.router.AddRoute("album", NewControllerAlbums(h.db, "album"))
 	h.router.AddRoute("content", NewControllerContent(h.db, "content"))
 
 	// Just serve the assets.

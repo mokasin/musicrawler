@@ -124,15 +124,16 @@ func (self *Query) Decode(src Result, dest interface{}) error {
 // DecodeAll does what Decode does but with a couple of results.
 func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 	v := reflect.ValueOf(dest)
-	if v.Kind() != reflect.Ptr || (v.Elem().Kind() != reflect.Slice &&
-		v.Elem().Kind() != reflect.Struct) {
+	if v.Kind() != reflect.Ptr ||
+		(v.Elem().Kind() != reflect.Slice &&
+			v.Elem().Kind() != reflect.Struct) {
 		return fmt.Errorf("dest must be a pointer to a slice or a struct.")
 	}
 
 	if v.Elem().Kind() == reflect.Struct {
 		if len(src) != 1 {
-			return fmt.Errorf("Can't write data from database to struct. " +
-				"Dimension mismatch.")
+			return fmt.Errorf("Can't write data from database to single " +
+				"struct. Got multiple results.")
 		}
 		return self.Decode(src[0], v.Interface())
 	}

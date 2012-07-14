@@ -75,9 +75,9 @@ func (self *Query) QueryDB(sql string, args ...interface{}) ([]Result, error) {
 
 // Exec queries database with query and writes results into dest. Dest must be a
 // pointer to a slice of structs.
-func (self *Query) Exec(query *Query, dest interface{}) error {
+func (self *Query) Exec(dest interface{}) error {
 
-	sql := query.toSQL()
+	sql := self.toSQL()
 
 	res, err := self.QueryDB(sql.SQL, sql.Args...)
 	if err != nil {
@@ -94,8 +94,8 @@ func (self *Query) Exec(query *Query, dest interface{}) error {
 }
 
 // Count returns the number of all database entries of this model.
-func (self *Query) Count(query *Query) (int, error) {
-	sqlQuery := query.toSQL()
+func (self *Query) Count() (int, error) {
+	sqlQuery := self.toSQL()
 
 	sql := fmt.Sprintf("SELECT COUNT(*) FROM (%s)", sqlQuery.SQL)
 
@@ -117,8 +117,8 @@ func (self *Query) Count(query *Query) (int, error) {
 }
 
 // Letters returns string of first letters in the column named column.
-func (self *Query) Letters(query *Query, column string) (string, error) {
-	sqlQuery := query.toSQL()
+func (self *Query) Letters(column string) (string, error) {
+	sqlQuery := self.toSQL()
 
 	sql := fmt.Sprintf("SELECT DISTINCT SUBSTR(UPPER(%s),1,1) FROM (%s)",
 		column, sqlQuery.SQL)

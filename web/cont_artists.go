@@ -68,7 +68,7 @@ func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 	// get first letter of artists
 	q := index.NewQuery(self.db, "artist").Order("name")
 
-	letters, err := q.Letters(q, "name")
+	letters, err := q.Letters("name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -108,7 +108,7 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	var artists []index.Artist
 	q := index.NewQuery(self.db, "artist").Find(id)
 
-	err = q.Exec(q, &artists)
+	err = q.Exec(&artists)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -126,7 +126,7 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 
 	var albums []index.Album
 
-	err = q.Exec(q, &albums)
+	err = q.Exec(&albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -138,7 +138,8 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	// prepare structure for template
 	for i := 0; i < len(albums); i++ {
 		ts.Albums[i].Album = albums[i]
-		ts.Albums[i].Path = "#"
+		//TODO don't hard code pathes
+		ts.Albums[i].Path = fmt.Sprintf("/%s/%d", "album", albums[i].Id)
 	}
 
 	ts.Breadcrumb = Breadcrump(r.URL.Path)
@@ -179,7 +180,7 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 
 	// get first letter of artists
 	q := index.NewQuery(self.db, "artist").Order("name")
-	letters, err := q.Letters(q, "name")
+	letters, err := q.Letters("name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -196,7 +197,7 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 
 	q = index.NewQuery(self.db, "artist").Like("name", string(letter)+"%")
 
-	err = q.Exec(q, &artists)
+	err = q.Exec(&artists)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
