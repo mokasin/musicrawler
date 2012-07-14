@@ -8,7 +8,6 @@ http server
 -----------
 * hide actual path to audio files
 * static page cache
-* hide actual path
 
 model
 -----
