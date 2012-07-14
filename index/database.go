@@ -35,10 +35,6 @@ type Database struct {
 
 	tx     *sql.Tx // global transaction
 	txOpen bool    // flag true, when exists an open transaction
-
-	Artists *Artists
-	Albums  *Albums
-	Tracks  *Tracks
 }
 
 // Creates a new Database struct and connects it to the database at filename.
@@ -61,11 +57,6 @@ func NewDatabase(filename string) (*Database, error) {
 	if _, err := db.Exec("PRAGMA journal_mode=OFF"); err != nil {
 		return nil, err
 	}
-
-	// initializing members
-	datab.Artists = NewArtists(datab)
-	datab.Albums = NewAlbums(datab)
-	datab.Tracks = NewTracks(datab)
 
 	// If databsae file does not exist
 	if newdatabase {
@@ -93,15 +84,15 @@ func (self *Database) createDatabase() error {
 	}
 	defer self.EndTransaction()
 
-	if err := self.Artists.CreateTable(); err != nil {
+	if err := CreateArtistTable(self); err != nil {
 		return err
 	}
 
-	if err := self.Albums.CreateTable(); err != nil {
+	if err := CreateArtistTable(self); err != nil {
 		return err
 	}
 
-	if err := self.Tracks.CreateTable(); err != nil {
+	if err := CreateTrackTable(self); err != nil {
 		return err
 	}
 

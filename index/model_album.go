@@ -16,18 +16,8 @@
 
 package index
 
-// Define artist model.
-type Albums struct {
-	Model
-}
-
-func NewAlbums(db *Database) *Albums {
-	// feed it with index and table name
-	return &Albums{Model: *NewModel(db, "album")}
-}
-
-func (self *Albums) CreateTable() error {
-	err := self.db.Execute(`CREATE TABLE Album
+func CreateAlbumTable(db *Database) error {
+	err := db.Execute(`CREATE TABLE Album
 	(  ID   INTEGER NOT NULL PRIMARY KEY,
 	   name TEXT,
 	   artist_id INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
@@ -37,7 +27,7 @@ func (self *Albums) CreateTable() error {
 		return err
 	}
 
-	return self.db.Execute(
+	return db.Execute(
 		"CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);")
 }
 
@@ -48,11 +38,11 @@ type Album struct {
 	ArtistID int    `column:"artist_id"`
 }
 
-func (self *Album) ArtistQuery() *Query {
-	return NewQuery("artist").Where("ID =", self.ArtistID)
+func (self *Album) ArtistQuery(db *Database) *Query {
+	return NewQuery(db, "artist").Where("ID =", self.ArtistID)
 }
 
 // Tracks returns a prepared Query reference 
-func (self *Album) TracksQuery() *Query {
-	return NewQuery("track").Where("album_id =", self.Id)
+func (self *Album) TracksQuery(db *Database) *Query {
+	return NewQuery(db, "track").Where("album_id =", self.Id)
 }

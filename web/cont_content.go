@@ -36,8 +36,8 @@ func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, pa
 
 	valid := false
 
-	q := index.NewQuery("track")
-	err := self.db.Tracks.Exec(q, &tracks)
+	q := index.NewQuery(self.db, "track")
+	err := q.Exec(q, &tracks)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

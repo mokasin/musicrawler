@@ -16,18 +16,8 @@
 
 package index
 
-// Define artist model.
-type Tracks struct {
-	Model
-}
-
-func NewTracks(db *Database) *Tracks {
-	// feed it with index and table name
-	return &Tracks{Model: *NewModel(db, "track")}
-}
-
-func (self *Tracks) CreateTable() error {
-	return self.db.Execute(`CREATE TABLE Track
+func CreateTrackTable(db *Database) error {
+	return db.Execute(`CREATE TABLE Track
 	( ID          INTEGER NOT NULL PRIMARY KEY,
 	  path        TEXT NOT NULL,
 	  title       TEXT,

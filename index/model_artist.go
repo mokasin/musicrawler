@@ -16,18 +16,8 @@
 
 package index
 
-// Define artist model.
-type Artists struct {
-	Model
-}
-
-func NewArtists(db *Database) *Artists {
-	// feed it with index and table name
-	return &Artists{Model: *NewModel(db, "artist")}
-}
-
-func (self *Artists) CreateTable() error {
-	return self.db.Execute(`CREATE TABLE Artist
+func CreateArtistTable(db *Database) error {
+	return db.Execute(`CREATE TABLE Artist
 	( ID   INTEGER  NOT NULL PRIMARY KEY,
 	  name TEXT     UNIQUE
 	);`)
@@ -40,7 +30,6 @@ type Artist struct {
 }
 
 // Albums returns a prepared Query to query the albums of the artist.
-func (self *Artist) AlbumsQuery() *Query {
-	q := NewQuery("album")
-	return q.Where("artist_id =", self.Id)
+func (self *Artist) AlbumsQuery(db *Database) *Query {
+	return NewQuery(db, "album").Where("artist_id =", self.Id)
 }

@@ -50,6 +50,7 @@ type order struct {
 // Query provides methods to build an SQL-Query.
 type Query struct {
 	table string
+	db    *Database
 
 	where  []where
 	like   []like
@@ -61,8 +62,8 @@ type Query struct {
 }
 
 // NewQuery creates a new Query for a specifig table.
-func NewQuery(table string) *Query {
-	return &Query{table: table}
+func NewQuery(db *Database, table string) *Query {
+	return &Query{db: db, table: table}
 }
 
 // sqlQuery represents a SQL query with arguments.

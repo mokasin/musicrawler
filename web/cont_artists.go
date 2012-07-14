@@ -51,9 +51,9 @@ func NewControllerArtists(db *index.Database, route string) *ControllerArtists {
 func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	// get first letter of artists
-	q := index.NewQuery("artist").Order("name")
+	q := index.NewQuery(self.db, "artist").Order("name")
 
-	letters, err := self.db.Artists.Letters(q, "name")
+	letters, err := q.Letters(q, "name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -85,9 +85,9 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	}
 
 	var artists []index.Artist
-	q := index.NewQuery("artist").Find(id)
+	q := index.NewQuery(self.db, "artist").Find(id)
 
-	err = self.db.Artists.Exec(q, &artists)
+	err = q.Exec(q, &artists)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -101,11 +101,11 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 
 	artist := artists[0]
 
-	q = artist.AlbumsQuery().Order("name")
+	q = artist.AlbumsQuery(self.db).Order("name")
 
 	var albums []index.Album
 
-	err = self.db.Albums.Exec(q, &albums)
+	err = q.Exec(q, &albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -143,8 +143,8 @@ func (self *ControllerArtists) generatePager(letters, active string) {
 // firstLetter shows a list of all artists whom's name starting with letter.
 func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
 	// get first letter of artists
-	q := index.NewQuery("artist").Order("name")
-	letters, err := self.db.Artists.Letters(q, "name")
+	q := index.NewQuery(self.db, "artist").Order("name")
+	letters, err := q.Letters(q, "name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -159,9 +159,9 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 	// populating data
 	var artists []index.Artist
 
-	q = index.NewQuery("artist").Like("name", string(letter)+"%")
+	q = index.NewQuery(self.db, "artist").Like("name", string(letter)+"%")
 
-	err = self.db.Artists.Exec(q, &artists)
+	err = q.Exec(q, &artists)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
