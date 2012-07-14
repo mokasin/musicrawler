@@ -105,22 +105,14 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	}
 	defer self.db.EndTransaction()
 
-	var artists []index.Artist
+	var artist index.Artist
 	q := index.NewQuery(self.db, "artist").Find(id)
-
-	err = q.Exec(&artists)
+	err = q.Exec(&artist)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	if len(artists) == 0 {
-		http.NotFound(w, r)
-		return
-	}
-
-	artist := artists[0]
 
 	q = artist.AlbumsQuery(self.db).Order("name")
 

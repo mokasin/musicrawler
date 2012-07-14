@@ -36,11 +36,12 @@ func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, pa
 
 	valid := false
 
-	q := index.NewQuery(self.db, "track")
-	err := q.Exec(&tracks)
+	err := index.NewQuery(self.db, "track").Exec(&tracks)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	path = "/" + path
 
 	for _, val := range tracks {
 		if path == val.Path {
