@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset='utf-8' />
-		<title>{{.Title}}</title>
+		<title>{{.page.Title}}</title>
 		<link href='/assets/css/bootstrap.css' rel='stylesheet' />
 		<link href='/assets/css/responsive.css' rel='stylesheet' />
 		<style>
@@ -37,7 +37,7 @@
 			</div>
 		</div>
 		<div class='container'>
-			{{.Body}}
+			{{template "content" .content}}
 		</div>
 	</body>
 </html>

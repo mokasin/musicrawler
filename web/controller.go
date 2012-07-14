@@ -19,39 +19,45 @@ package web
 import (
 	"html/template"
 	"musicrawler/index"
+	"net/http"
 )
 
+// Basic page structure.
+type Page struct {
+	Title string
+}
+
 type Controller struct {
-	db    *index.Database
-	tmpl  *template.Template
-	route string
+	db        *index.Database
+	templates map[string]*template.Template
+	route     string
 }
 
 // Constructor. Needs templates to register.
-func NewController(db *index.Database, route string, templates ...string) *Controller {
-	var tmpl *template.Template
+func NewController(db *index.Database, route string) *Controller {
+	return &Controller{
+		db:        db,
+		route:     route,
+		templates: make(map[string]*template.Template),
+	}
+}
 
+// AddTemplate adds associated templates to the template cache.
+func (self *Controller) AddTemplate(name string, templates ...string) {
 	if len(templates) > 0 {
 		for i := 0; i < len(templates); i++ {
 			templates[i] = websitePath + "templates/" + templates[i] + ".tpl"
 		}
-		tmpl = template.Must(template.ParseFiles(templates...))
-	}
-
-	return &Controller{
-		db:    db,
-		route: route,
-		tmpl:  tmpl,
+		self.templates[name] = template.Must(template.ParseFiles(templates...))
 	}
 }
 
-// Parses and returns template with name name. At the first call, the parsed
-// template is saved at c.tmpl
-func (c *Controller) Tmpl(name string) *template.Template {
-	t := c.tmpl.Lookup(name + ".tpl")
-	if t == nil {
-		t, _ = template.ParseFiles(websitePath + "templates/" + name + ".tpl")
-	}
+// Write template with name tmpl to w.
+func (self *Controller) renderPage(w http.ResponseWriter, tmpl string, p *Page, data interface{}) {
+	m := map[string]interface{}{"page": p, "content": data}
 
-	return t
+	err := self.templates[tmpl].Execute(w, m)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

@@ -1,3 +1,4 @@
+{{define "content"}}
 <ul class='breadcrumb'>
 	{{range .Breadcrumb}}
 		{{if .Active}}
@@ -34,3 +35,4 @@
 		</tbody>
 	</table>
 </div>
+{{end}}

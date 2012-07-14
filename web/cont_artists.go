@@ -52,9 +52,14 @@ type ControllerArtists struct {
 
 // Constructor.
 func NewControllerArtists(db *index.Database, route string) *ControllerArtists {
-	return &ControllerArtists{
-		Controller: *NewController(db, route, "artists", "artist"),
+	c := &ControllerArtists{
+		Controller: *NewController(db, route),
 	}
+
+	c.AddTemplate("index", "index", "artists")
+	c.AddTemplate("select", "index", "artist")
+
+	return c
 }
 
 // Implementation of SelectHandler.
@@ -93,6 +98,12 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	if err := self.db.BeginTransaction(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer self.db.EndTransaction()
 
 	var artists []index.Artist
 	q := index.NewQuery(self.db, "artist").Find(id)
@@ -133,7 +144,12 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	ts.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
-	renderInPage(w, "index", self.Tmpl("artist"), ts, artist.Name)
+	self.renderPage(
+		w,
+		"select",
+		&Page{Title: artist.Name},
+		ts,
+	)
 }
 
 func (self *ControllerArtists) generatePager(letters, active string) []activelink {
@@ -155,6 +171,12 @@ func (self *ControllerArtists) generatePager(letters, active string) []activelin
 
 // firstLetter shows a list of all artists whom's name starting with letter.
 func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
+	if err := self.db.BeginTransaction(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer self.db.EndTransaction()
+
 	// get first letter of artists
 	q := index.NewQuery(self.db, "artist").Order("name")
 	letters, err := q.Letters(q, "name")
@@ -192,6 +214,10 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 	ts.Pager = self.generatePager(letters, string(letter))
 
 	// render the website
-	renderInPage(w, "index", self.Tmpl("artists"), ts,
-		"Artists starting with"+string(letter))
+	self.renderPage(
+		w,
+		"index",
+		&Page{Title: "Artists starting with" + string(letter)},
+		ts,
+	)
 }

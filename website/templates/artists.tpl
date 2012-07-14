@@ -1,3 +1,4 @@
+{{define "content"}}
 <div class='btn-group' style='margin-bottom: 0.5em'>
 	{{range .Pager}}
 		{{if .Active}}
@@ -28,3 +29,4 @@
 		</tbody>
 	</table>
 </div>
+{{end}}
