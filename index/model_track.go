@@ -47,11 +47,30 @@ type Track struct {
 	DBMtime     int    `column:"dbmtime"`
 }
 
+type JoinedTrack struct {
+	Id          int    `column:"track:ID" set:"0"`
+	Path        string `column:"track:path"`
+	Title       string `column:"track:title"`
+	Tracknumber int    `column:"track:tracknumber"`
+	Year        int    `column:"track:year"`
+	Length      int    `column:"track:length"`
+	Genre       string `column:"track:genre"`
+	Filemtime   int    `column:"track:filemtime"`
+	DBMtime     int    `column:"track:dbmtime"`
+	Artist      string `column:"artist:name"`
+	Album       string `column:"album:name"`
+}
+
 func (self *Track) AlbumQuery(db *Database) *Query {
 	return NewQuery(db, "album").Where("ID =", self.AlbumID)
 }
 
 // LengthString returns a nicely formatted string of the track's length.
 func (self *Track) LengthString() string {
+	return fmt.Sprintf("%d:%02d", self.Length/60, self.Length%60)
+}
+
+// LengthString returns a nicely formatted string of the track's length.
+func (self *JoinedTrack) LengthString() string {
 	return fmt.Sprintf("%d:%02d", self.Length/60, self.Length%60)
 }

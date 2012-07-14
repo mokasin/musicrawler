@@ -16,8 +16,6 @@
 
 package source
 
-import "fmt"
-
 // Metadata for a track
 type TrackTags struct {
 	Path    string

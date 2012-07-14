@@ -82,10 +82,12 @@ func (self *Query) Decode(src Result, dest interface{}) error {
 		// read out struct's tag to get the column name
 		val, ok := src[t.Field(i).Tag.Get("column")]
 		if !ok {
-			return fmt.Errorf("No column named '%s' connected to "+
-				"'%s.%s %v' found in database.",
-				t.Field(i).Tag.Get("name"),
+			return fmt.Errorf("No column named '%s' found in query result. "+
+				"Struct field '%s.%s %v' cannot be written.\n"+
+				"Query result: %v",
+				t.Field(i).Tag.Get("column"),
 				t.Name(), t.Field(i).Name, v.Field(i).Kind(),
+				src,
 			)
 		}
 

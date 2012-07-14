@@ -23,8 +23,8 @@
 							<a href="/content{{.Track.Path}}" title="Play"></a>
 						</div>
 					</td>
-					<td></td>
-					<td>{{.Track.AlbumID}}</td>
+					<td>{{.Track.Artist}}</td>
+					<td>{{.Track.Album}}</td>
 					<td>{{.Track.Title}}</td>
 					<td>{{.Track.Tracknumber}}</td>
 					<td>{{.Track.Year}}</td>

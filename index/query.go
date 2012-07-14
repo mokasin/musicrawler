@@ -17,8 +17,13 @@
 package index
 
 import (
+	"fmt"
 	"strings"
 )
+
+type join struct {
+	OnTable, OnFieldName, OwnTable, OwnFieldName string
+}
 
 type where struct {
 	Constriction string
@@ -52,11 +57,13 @@ type Query struct {
 	table string
 	db    *Database
 
-	where  []where
-	like   []like
-	order  []order
-	limit  uint
-	offset uint
+	columns []string
+	join    []join
+	where   []where
+	like    []like
+	order   []order
+	limit   uint
+	offset  uint
 
 	err error
 }
@@ -74,8 +81,26 @@ type sqlQuery struct {
 
 // toSQL encodes the query into an SQL-Query.
 func (q *Query) toSQL() *sqlQuery {
-	var where, order, limit, offset string
+	var columns, join, where, order, limit, offset string
 	sql := &sqlQuery{}
+
+	if len(q.columns) == 0 {
+		columns = q.table + ".*"
+	} else {
+		for i, v := range q.columns {
+			columns += v + " AS \"" + strings.Replace(v, ".", ":", -1) + "\""
+			if i < len(q.columns)-1 {
+				columns += ","
+			}
+		}
+	}
+
+	for _, v := range q.join {
+		join += fmt.Sprintf(" JOIN %s ON %s.%s = %s.%s",
+			v.OnTable,
+			v.OwnTable, v.OwnFieldName,
+			v.OnTable, v.OnFieldName)
+	}
 
 	if len(q.where) > 0 || len(q.like) > 0 {
 		where = " WHERE"
@@ -126,9 +151,41 @@ func (q *Query) toSQL() *sqlQuery {
 		sql.Args = append(sql.Args, q.offset)
 	}
 
-	sql.SQL = "SELECT * FROM " + q.table + where + order + limit + offset
+	sql.SQL = "SELECT " + columns + " FROM " +
+		q.table + join + where + order + limit + offset
 
 	return sql
+}
+
+// Columns returns a derivated Query that returns only the given columns. A '*'
+// selects all available columns.
+//
+// columns must have the format:
+//
+// 		<table>.<column>
+//
+// Multiple calls overwrite the previous one.
+func (q *Query) Columns(columns ...string) *Query {
+	q.columns = columns
+	return q
+}
+
+// Join returns a derivated Query that joins onTable and ownTable with respect
+// to the fields onFieldName and ownFieldname.
+// If ownFieldname is an empty string "", q.table is used.
+func (q *Query) Join(onTable, onFieldName, ownTable, ownFieldName string) *Query {
+	if ownTable == "" {
+		ownTable = q.table
+	}
+
+	q.join = append(q.join, join{
+		OnTable:      onTable,
+		OnFieldName:  onFieldName,
+		OwnTable:     ownTable,
+		OwnFieldName: ownFieldName,
+	})
+
+	return q
 }
 
 // Where returns a derivated Query with an applied constriction. The
