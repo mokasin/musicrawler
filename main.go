@@ -103,14 +103,14 @@ func main() {
 	fmt.Println("-> Open database:", dbFileName)
 
 	// open or create database
-	index, err := index.NewIndex(dbFileName)
+	mydb, err := index.NewDatabase(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
 	}
-	defer index.Close()
+	defer mydb.Close()
 
-	sourceList = NewSourceList(index)
+	sourceList = NewSourceList(mydb)
 
 	if *updateFlag {
 		if flag.NArg() == 0 {
@@ -126,20 +126,20 @@ func main() {
 		fmt.Println("-> Update files.")
 		updateTracks()
 
-		fmt.Print("-> Cleanup database.")
-		if del, err := index.DeleteDanglingEntries(); err != nil {
-			fmt.Println("ERROR:", err)
-		} else {
-			fmt.Printf(" %d tracks deleted.\n", del)
-		}
+		//fmt.Print("-> Cleanup database.")
+		//if del, err := index.DeleteDanglingEntries(); err != nil {
+		//	fmt.Println("ERROR:", err)
+		//} else {
+		//	fmt.Printf(" %d tracks deleted.\n", del)
+		//}
 	}
 
 	fmt.Println("-> Starting webserver...\n")
 
 	status := make(chan *web.Status, 1000)
 
-	hts := web.NewHttpTrackServer(index, status)
-	go hts.StartListing()
+	h := web.NewHTTPTrackServer(mydb, status)
+	go h.StartListing()
 
 	fmt.Println("   ...Listening on :8080")
 
@@ -147,6 +147,7 @@ func main() {
 		if *verbosity {
 			if s.Err != nil {
 				fmt.Printf("%v: SERVER ERROR: %v\n", s.Timestamp, s.Err)
+				break
 			} else {
 				fmt.Printf("%v: %s\n", s.Timestamp, s.Msg)
 			}

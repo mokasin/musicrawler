@@ -19,7 +19,6 @@ Dependencies
 via the C-interface for reading tag metadata
 * [gotaglib](http://github.com/mokasin/gotaglib)
 * [go-sqlite3](https://github.com/mattn/go-sqlite3) by Yasuhiro Matsumoto
-* [HAML](http://haml.info/)
 * [LESS](http://lesscss.org/)
   (for [Bootstrap](http://twitter.github.com/bootstrap/))
 
@@ -31,12 +30,11 @@ Get it
 
 		$ go get github.com/mokasin/musicrawler
 
-	Get *HAML* and *LESS* via RubyGems and Node.js Package Manager
+	Get *LESS* via Node.js Package Manager
 
-		$ gem install haml
 		$ npm -g install less
 
-	or do it your own way. **haml** and **lessc** should be in an executable
+	or do it your own way. **lessc** should be in an executable
 	path.
 
 Build
@@ -54,7 +52,7 @@ and build it (on Linux) with
 
 	$ ./make.sh
 
-This compiles also less- and haml-files.
+This compiles also less-files.
 
 To build with debug symbols just
 

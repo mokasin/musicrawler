@@ -14,32 +14,22 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package source
+package index
 
-// Metadata for a track
-type TrackTags struct {
-	Path    string
-	Title   string
-	Artist  string
-	Album   string
-	Comment string
-	Genre   string
-	Year    int
-	Track   int
-	Bitrate int
-	Length  int
+func CreateArtistTable(db *Database) error {
+	return db.Execute(`CREATE TABLE Artist
+	( ID   INTEGER  NOT NULL PRIMARY KEY,
+	  name TEXT     UNIQUE
+	);`)
 }
 
-// Basic information about a track.
-type TrackInfo interface {
-	Path() string
-	Mtime() int64
-	Tags() (*TrackTags, error)
+// Define scheme of artist entry.
+type Artist struct {
+	Id   int    `column:"ID" set:"0"`
+	Name string `column:"name"`
 }
 
-// Abstract interface for sources of tracks. To implement the interface a method
-// Crawl has to be defined, that sends the tracks of the source over the tracks
-// channel.
-type TrackSource interface {
-	Crawl(tracks chan<- TrackInfo, done chan<- bool)
+// Albums returns a prepared Query to query the albums of the artist.
+func (self *Artist) AlbumsQuery(db *Database) *Query {
+	return NewQuery(db, "album").Where("artist_id =", self.Id)
 }
