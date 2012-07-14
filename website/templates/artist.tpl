@@ -25,8 +25,8 @@
 			{{range .Albums}}
 				<tr>
 					<td>
-						<a href='{{.URL}}'>
-							{{.Name}}
+						<a href='{{.Path}}'>
+							{{.Album.Name}}
 						</a>
 					</td>
 				</tr>

@@ -8,22 +8,6 @@
 	{{end}}
 </div>
 
-<ul class='breadcrumb'>
-	{{range .Breadcrumb}}
-		{{if .Active}}
-			<li class='active'>
-				<a href='{{.Path}}'>{{.Label}}</a>
-				<span class='divider'>/</span>
-			</li>
-		{{else}}
-			<li>
-				<a href='{{.Path}}'>{{.Label}}</a>
-				<span class='divider'>/</span>
-			</li>
-		{{end}}
-	{{end}}
-</ul>
-
 <div class='artist-table'>
 	<table class='table table-condensed table-striped'>
 		<thead>
@@ -35,8 +19,8 @@
 			{{range .Artists}}
 				<tr>
 					<td>
-						<a href='{{.URL}}'>
-							{{.Name}}
+						<a href='{{.Path}}'>
+							{{.Artist.Name}}
 						</a>
 					</td>
 				</tr>

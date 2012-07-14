@@ -25,14 +25,29 @@ import (
 	"strings"
 )
 
+type artistLink struct {
+	Artist index.Artist
+	Path   string
+}
+
+type artistsIndexTmpl struct {
+	Pager   []activelink
+	Artists []artistLink
+}
+
+type albumLink struct {
+	Album index.Album
+	Path  string
+}
+
+type artistsSelectTmpl struct {
+	Breadcrumb []activelink
+	Albums     []albumLink
+}
+
 // Controller to serve artists
 type ControllerArtists struct {
 	Controller
-
-	Artists    []link
-	Albums     []link
-	Pager      []activelink
-	Breadcrumb []activelink
 }
 
 // Constructor.
@@ -106,33 +121,36 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	self.Albums = make([]link, len(albums))
+	var ts artistsSelectTmpl
+	ts.Albums = make([]albumLink, len(albums))
 
 	// prepare structure for template
 	for i := 0; i < len(albums); i++ {
-		self.Albums[i].Label = albums[i].Name
-		self.Albums[i].Path = "#"
+		ts.Albums[i].Album = albums[i]
+		ts.Albums[i].Path = "#"
 	}
 
-	self.Breadcrumb = Breadcrump(r.URL.Path)
+	ts.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
-	renderInPage(w, "index", self.Tmpl("artist"), self, artist.Name)
+	renderInPage(w, "index", self.Tmpl("artist"), ts, artist.Name)
 }
 
-func (self *ControllerArtists) generatePager(letters, active string) {
+func (self *ControllerArtists) generatePager(letters, active string) []activelink {
 	// creating pager
-	self.Pager = make([]activelink, len(letters))
+	pager := make([]activelink, len(letters))
 
 	for i := 0; i < len(letters); i++ {
 		if string(letters[i]) == active {
-			self.Pager[i].Active = true
+			pager[i].Active = true
 		}
-		self.Pager[i].Label = string(letters[i])
+		pager[i].Label = string(letters[i])
 		v := url.Values{}
 		v.Add("page", string(letters[i]))
-		self.Pager[i].Path = "/" + self.route + "?" + v.Encode()
+		pager[i].Path = "/" + self.route + "?" + v.Encode()
 	}
+
+	return pager
 }
 
 // firstLetter shows a list of all artists whom's name starting with letter.
@@ -162,18 +180,18 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	self.Artists = make([]link, len(artists))
+	var ts artistsIndexTmpl
+	ts.Artists = make([]artistLink, len(artists))
 
 	// prepare structure for template
 	for i := 0; i < len(artists); i++ {
-		self.Artists[i].Label = artists[i].Name
-		self.Artists[i].Path = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
+		ts.Artists[i].Artist = artists[i]
+		ts.Artists[i].Path = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
 	}
 
-	self.generatePager(letters, string(letter))
-	self.Breadcrumb = Breadcrump(r.URL.Path)
+	ts.Pager = self.generatePager(letters, string(letter))
 
 	// render the website
-	renderInPage(w, "index", self.Tmpl("artists"), self,
+	renderInPage(w, "index", self.Tmpl("artists"), ts,
 		"Artists starting with"+string(letter))
 }
