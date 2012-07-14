@@ -88,7 +88,7 @@ func (self *Database) createDatabase() error {
 		return err
 	}
 
-	if err := CreateArtistTable(self); err != nil {
+	if err := CreateAlbumTable(self); err != nil {
 		return err
 	}
 
