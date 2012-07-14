@@ -22,15 +22,48 @@ import (
 	"time"
 )
 
+const (
+	sql_insert_artist = "INSERT OR IGNORE INTO Artist(name) VALUES (?);"
+	sql_insert_album  = `INSERT OR IGNORE INTO Album(name, artist_id)
+	VALUES (?,
+			(SELECT ID FROM Artist WHERE name = ?));`
+
+	sql_add_track = `INSERT INTO Track(
+	path,
+	title,
+	album_id,
+	tracknumber,
+	year,
+	length,
+	genre,
+	filemtime,
+	dbmtime)
+    VALUES( ?, ?, 
+		   (SELECT ID FROM Album  WHERE name = ?), 
+		    ?, ?, ?, ?, ?, ?);`
+
+	sql_update_timestamp = "UPDATE Track SET dbmtime = ? WHERE path = ?;"
+
+	sql_update_track = `UPDATE Track SET
+	title       = ?,
+	album_id    = (SELECT ID FROM Album  WHERE name = ?),
+	tracknumber = ?,
+	year        = ?,
+	length		= ?,
+	genre       = ?,
+	filemtime   = ?
+	WHERE path  = ?;`
+)
+
 // Updates the timestamp if the track is in the database. The timestamp shows
 // the last time the entry was touched.
-func (i *Index) updateTrackTimestamp(track source.TrackInfo,
+func (d *Database) updateTrackTimestamp(track source.TrackInfo,
 	stmtUpdateTimestamp *sql.Stmt) error {
-	_, err := stmtUpdateTimestamp.Exec(i.timestamp, track.Path())
+	_, err := stmtUpdateTimestamp.Exec(d.timestamp, track.Path())
 	return err
 }
 
-func (i *Index) insertArtistAlbum(tag *source.TrackTags, stmtInsertArtist *sql.Stmt,
+func (d *Database) insertArtistAlbum(tag *source.TrackTags, stmtInsertArtist *sql.Stmt,
 	stmtInsertAlbum *sql.Stmt) error {
 	if _, err := stmtInsertArtist.Exec(tag.Artist); err != nil {
 		return err
@@ -43,7 +76,7 @@ func (i *Index) insertArtistAlbum(tag *source.TrackTags, stmtInsertArtist *sql.S
 }
 
 // Adds a track into the database using an existing transaction tx.
-func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
+func (d *Database) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	stmtInsertAlbum *sql.Stmt, stmtAddTrack *sql.Stmt) error {
 	tag, err := track.Tags()
 	if err != nil {
@@ -51,7 +84,7 @@ func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	}
 
 	// first make sure artist and album exist in database
-	if err := i.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
+	if err := d.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
 		return err
 	}
 
@@ -64,13 +97,13 @@ func (i *Index) addTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 		tag.Length,
 		tag.Genre,
 		track.Mtime(),
-		i.timestamp,
+		d.timestamp,
 	)
 	return err
 }
 
 // Update a changed track in the database using an existing transaction tx.
-func (i *Index) updateTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
+func (d *Database) updateTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	stmtInsertAlbum *sql.Stmt, stmtUpdateTrack *sql.Stmt) error {
 	tag, err := track.Tags()
 	if err != nil {
@@ -78,7 +111,7 @@ func (i *Index) updateTrack(track source.TrackInfo, stmtInsertArtist *sql.Stmt,
 	}
 
 	// first make sure artist and album exist in database
-	if err := i.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
+	if err := d.insertArtistAlbum(tag, stmtInsertArtist, stmtInsertAlbum); err != nil {
 		return err
 	}
 
@@ -121,10 +154,10 @@ type UpdateResult struct {
 //
 // It makes sure everything is cleaned up nicely before the signal gets emmitted
 // to prevent racing conditions when closing the database connection.
-func (i *Index) Update(tracks <-chan source.TrackInfo, status chan<- *UpdateStatus,
+func (d *Database) Update(tracks <-chan source.TrackInfo, status chan<- *UpdateStatus,
 	result chan<- *UpdateResult) {
 	// signal is emitted, not untils index.Update() has cleaned up everything
-	result <- i.update(tracks, status)
+	result <- d.update(tracks, status)
 }
 
 // Updates or adds tracks that are received at the tracks channel.
@@ -132,13 +165,13 @@ func (i *Index) Update(tracks <-chan source.TrackInfo, status chan<- *UpdateStat
 // For every track a status update UpdateStatus is emitted to the status
 // channel. If the method finishes, the overall result is emitted on the result
 // channel.
-func (i *Index) update(tracks <-chan source.TrackInfo,
+func (d *Database) update(tracks <-chan source.TrackInfo,
 	status chan<- *UpdateStatus) *UpdateResult {
 
 	// Get current time to set modify time of database entry
-	i.timestamp = time.Now().Unix()
+	d.timestamp = time.Now().Unix()
 
-	tx, err := i.db.Begin()
+	tx, err := d.db.Begin()
 	if err != nil {
 		close(status)
 		return &UpdateResult{Err: err}
@@ -204,24 +237,24 @@ func (i *Index) update(tracks <-chan source.TrackInfo,
 			&trackMtime); {
 		case err == nil: // track is in database
 			// update timestamp because file still exists
-			statusErr = i.updateTrackTimestamp(ti, stmtUpdateTimestamp)
+			statusErr = d.updateTrackTimestamp(ti, stmtUpdateTimestamp)
 			if statusErr == nil {
 				// check if track has changed since the last time
 				if ti.Mtime() != trackMtime {
-					statusErr = i.updateTrack(ti, stmtInsertArtist,
+					statusErr = d.updateTrack(ti, stmtInsertArtist,
 						stmtInsertAlbum, stmtUpdateTrack)
 					trackAction = TRACK_UPDATE
 				}
 			}
 		case err == sql.ErrNoRows: // track is not in database
 			// automatically update of timestamp when adding (performance)
-			statusErr = i.addTrack(ti, stmtInsertArtist, stmtInsertAlbum,
+			statusErr = d.addTrack(ti, stmtInsertArtist, stmtInsertAlbum,
 				stmtAddTrack)
 			trackAction = TRACK_ADD
 		default:
 			// if something is wrong update timestamp, so track is not
 			// deleted the next time
-			statusErr = i.updateTrackTimestamp(ti, stmtUpdateTimestamp)
+			statusErr = d.updateTrackTimestamp(ti, stmtUpdateTimestamp)
 		}
 
 		status <- &UpdateStatus{
@@ -246,13 +279,13 @@ func (i *Index) update(tracks <-chan source.TrackInfo,
 // Track-table.
 //
 // Returns the number of deleted rows and an error.
-func (i *Index) DeleteDanglingEntries() (int64, error) {
-	tx, err := i.db.Begin()
+func (d *Database) DeleteDanglingEntries() (int64, error) {
+	tx, err := d.db.Begin()
 	if err != nil {
 		return 0, err
 	}
 
-	r, err := tx.Exec("DELETE FROM Track WHERE dbmtime <> ?", i.timestamp)
+	r, err := tx.Exec("DELETE FROM Track WHERE dbmtime <> ?", d.timestamp)
 	deletedTracks, _ := r.RowsAffected()
 	if err != nil {
 		return deletedTracks, err

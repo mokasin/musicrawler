@@ -101,14 +101,14 @@ func main() {
 	fmt.Println("-> Open database:", dbFileName)
 
 	// open or create database
-	myindex, err := index.NewIndex(dbFileName)
+	mydb, err := index.NewDatabase(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
 	}
-	defer myindex.Close()
+	defer mydb.Close()
 
-	sourceList = NewSourceList(myindex)
+	sourceList = NewSourceList(mydb)
 
 	if *updateFlag {
 		if flag.NArg() == 0 {
@@ -136,7 +136,7 @@ func main() {
 
 	status := make(chan *web.Status, 1000)
 
-	h := web.NewHTTPTrackServer(myindex, status)
+	h := web.NewHTTPTrackServer(mydb, status)
 	go h.StartListing()
 
 	fmt.Println("   ...Listening on :8080")

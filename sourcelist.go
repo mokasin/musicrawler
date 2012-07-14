@@ -25,41 +25,41 @@ import (
 // Struct to manage different track sources
 type SourceList struct {
 	sources *list.List
-	index   *index.Index
+	db      *index.Database
 }
 
 // Constructor of Sources.
-func NewSourceList(i *index.Index) *SourceList {
+func NewSourceList(db *index.Database) *SourceList {
 	return &SourceList{
 		sources: list.New(),
-		index:   i,
+		db:      db,
 	}
 }
 
 // Add a source to source list.
-func (s *SourceList) Add(source source.TrackSource) {
-	s.sources.PushBack(source)
+func (self *SourceList) Add(source source.TrackSource) {
+	self.sources.PushBack(source)
 }
 
 // Remove element from source list.
-func (s *SourceList) Remove(e *list.Element) {
-	s.sources.Remove(e)
+func (self *SourceList) Remove(e *list.Element) {
+	self.sources.Remove(e)
 }
 
-func (s *SourceList) Update(statusChannel chan *index.UpdateStatus,
+func (self *SourceList) Update(statusChannel chan *index.UpdateStatus,
 	result chan error) {
 
 	trackInfoChannel := make(chan source.TrackInfo, 100)
 	updateResultChannel := make(chan *index.UpdateResult)
 	doneChannel := make(chan bool)
 
-	// Output of crawler(s) connects to the input of index.Update() over
+	// Output of crawler(self) connects to the input of index.Update() over
 	// trackInfoChannel channel
-	go s.index.Update(trackInfoChannel, statusChannel, updateResultChannel)
+	go self.db.Update(trackInfoChannel, statusChannel, updateResultChannel)
 
 	running := 0
 
-	for e := s.sources.Front(); e != nil; e = e.Next() {
+	for e := self.sources.Front(); e != nil; e = e.Next() {
 		if ts, ok := e.Value.(source.TrackSource); ok {
 			running++
 			go ts.Crawl(trackInfoChannel, doneChannel)

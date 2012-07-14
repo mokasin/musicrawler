@@ -45,24 +45,24 @@ func msg(msg string, err error) {
 
 // Manages a HTTP server to serve audio files saved in database. 
 type HTTPTrackServer struct {
-	index  *index.Index
+	db     *index.Database
 	router *Router
 }
 
-// Constructor of HTTPTrackServer. Needs an index.Index to work on.
-func NewHTTPTrackServer(i *index.Index, stat chan<- *Status) *HTTPTrackServer {
+// Constructor of HTTPTrackServer. Needs an db.db to work on.
+func NewHTTPTrackServer(i *index.Database, stat chan<- *Status) *HTTPTrackServer {
 	// set global variable
 	statusChannel = stat
 
-	return &HTTPTrackServer{index: i, router: NewRouter()}
+	return &HTTPTrackServer{db: i, router: NewRouter()}
 }
 
 // Starts http server on port 8080 and set routes.
 func (h *HTTPTrackServer) StartListing() {
 	// Adding routes
 
-	h.router.AddRoute("artists", NewControllerArtists(h.index, "artists"))
-	h.router.AddRoute("content", NewControllerContent(h.index, "content"))
+	h.router.AddRoute("artists", NewControllerArtists(h.db, "artists"))
+	h.router.AddRoute("content", NewControllerContent(h.db, "content"))
 
 	// Just serve the assets.
 	http.Handle("/assets/",

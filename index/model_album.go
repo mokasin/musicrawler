@@ -21,13 +21,13 @@ type Albums struct {
 	Model
 }
 
-func NewAlbums(index *Index) *Albums {
+func NewAlbums(db *Database) *Albums {
 	// feed it with index and table name
-	return &Albums{Model: *NewModel(index, "album")}
+	return &Albums{Model: *NewModel(db, "album")}
 }
 
-func (a *Albums) CreateDatabase() error {
-	err := a.Execute(`CREATE TABLE Album
+func (self *Albums) CreateTable() error {
+	err := self.db.Execute(`CREATE TABLE Album
 	(  ID   INTEGER NOT NULL PRIMARY KEY,
 	   name TEXT,
 	   artist_id INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
@@ -37,76 +37,22 @@ func (a *Albums) CreateDatabase() error {
 		return err
 	}
 
-	return a.Execute(
+	return self.db.Execute(
 		"CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);")
 }
 
 // Define scheme of artist entry.
 type Album struct {
-	Item
-
 	Id       int    `column:"ID" set:"0"`
 	Name     string `column:"name"`
 	ArtistID int    `column:"artist_id"`
 }
 
-func (a *Album) Artist() (*Artist, error) {
-	artists, err := a.Index.Artists.Find(a.ArtistID).Exec()
-
-	if len(*artists) > 0 {
-		return &((*artists)[0]), err
-	}
-
-	return nil, err
+func (self *Album) ArtistQuery() *Query {
+	return NewQuery("artist").Where("ID =", self.ArtistID)
 }
 
-func (a *Album) Tracks() *Tracks {
-	return a.Index.Tracks.Where("album_id = ?", a.Id)
-}
-
-func (a *Albums) Exec() (*[]Album, error) {
-	var ar []Album
-	err := a.Model.Exec(&ar)
-	return &ar, err
-}
-
-// Wrappers for convinence.
-func (a *Albums) All() *Albums {
-	a.Model.All()
-	return a
-}
-
-func (a *Albums) Find(ID int) *Albums {
-	a.Model.Find(ID)
-	return a
-}
-
-func (a *Albums) Where(query string, args ...interface{}) *Albums {
-	a.Model.Where(query, args...)
-	return a
-}
-
-func (a *Albums) WhereQ(query Query) *Albums {
-	a.Model.WhereQ(query)
-	return a
-}
-
-func (a *Albums) LikeQ(query Query) *Albums {
-	a.Model.LikeQ(query)
-	return a
-}
-
-func (a *Albums) Limit(number int) *Albums {
-	a.Model.Limit(number)
-	return a
-}
-
-func (a *Albums) Offset(offset int) *Albums {
-	a.Model.Offset(offset)
-	return a
-}
-
-func (a *Albums) OrderBy(column string) *Albums {
-	a.Model.OrderBy(column)
-	return a
+// Tracks returns a prepared Query reference 
+func (self *Album) TracksQuery() *Query {
+	return NewQuery("track").Where("album_id =", self.Id)
 }

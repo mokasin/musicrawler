@@ -21,13 +21,13 @@ type Artists struct {
 	Model
 }
 
-func NewArtists(index *Index) *Artists {
+func NewArtists(db *Database) *Artists {
 	// feed it with index and table name
-	return &Artists{Model: *NewModel(index, "artist")}
+	return &Artists{Model: *NewModel(db, "artist")}
 }
 
-func (a *Artists) CreateDatabase() error {
-	return a.Execute(`CREATE TABLE Artist
+func (self *Artists) CreateTable() error {
+	return self.db.Execute(`CREATE TABLE Artist
 	( ID   INTEGER  NOT NULL PRIMARY KEY,
 	  name TEXT     UNIQUE
 	);`)
@@ -35,59 +35,12 @@ func (a *Artists) CreateDatabase() error {
 
 // Define scheme of artist entry.
 type Artist struct {
-	Item
-
 	Id   int    `column:"ID" set:"0"`
 	Name string `column:"name"`
 }
 
-func (a *Artist) Albums() *Albums {
-	return a.Index.Albums.Where("artist_id = ?", a.Id)
-}
-
-func (a *Artists) Exec() (*[]Artist, error) {
-	var ar []Artist
-	err := a.Model.Exec(&ar)
-	return &ar, err
-}
-
-// Wrappers for convinence and type safety.
-func (a *Artists) All() *Artists {
-	a.Model.All()
-	return a
-}
-
-func (a *Artists) Find(ID int) *Artists {
-	a.Model.Find(ID)
-	return a
-}
-
-func (a *Artists) Where(query string, args ...interface{}) *Artists {
-	a.Model.Where(query, args...)
-	return a
-}
-
-func (a *Artists) WhereQ(query Query) *Artists {
-	a.Model.WhereQ(query)
-	return a
-}
-
-func (a *Artists) LikeQ(query Query) *Artists {
-	a.Model.LikeQ(query)
-	return a
-}
-
-func (a *Artists) Limit(number int) *Artists {
-	a.Model.Limit(number)
-	return a
-}
-
-func (a *Artists) Offset(offset int) *Artists {
-	a.Model.Offset(offset)
-	return a
-}
-
-func (a *Artists) OrderBy(column string) *Artists {
-	a.Model.OrderBy(column)
-	return a
+// Albums returns a prepared Query to query the albums of the artist.
+func (self *Artist) AlbumsQuery() *Query {
+	q := NewQuery("album")
+	return q.Where("artist_id =", self.Id)
 }

@@ -5,13 +5,13 @@
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  c program is distributed in the hope that it will be useful,
+ *  The program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with c program. If not, see <http://www.gnu.org/licenses/>.
+ *  along with the program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 package web
@@ -41,17 +41,19 @@ type ControllerArtists struct {
 }
 
 // Constructor.
-func NewControllerArtists(index *index.Index, route string) *ControllerArtists {
+func NewControllerArtists(db *index.Database, route string) *ControllerArtists {
 	return &ControllerArtists{
-		Controller: *NewController(index, route, "artists"),
+		Controller: *NewController(db, route, "artists", "artist"),
 	}
 }
 
 // Implementation of SelectHandler.
-func (c *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
+func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	// get first letter of artists
-	letters, err := c.index.Artists.All().OrderBy("name").Letters("name")
+	q := index.NewQuery("artist").Order("name")
+
+	letters, err := self.db.Artists.Letters(q, "name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -62,7 +64,7 @@ func (c *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	// just go to the first page by default
 	if page == "" {
-		c.byFirstLetter(w, r, rune(letters[0]))
+		self.byFirstLetter(w, r, rune(letters[0]))
 		return
 	}
 
@@ -72,68 +74,78 @@ func (c *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.byFirstLetter(w, r, rune(page[0]))
+	self.byFirstLetter(w, r, rune(page[0]))
 }
 
-func (c *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, selector string) {
+func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, selector string) {
 	id, err := strconv.Atoi(selector)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	artists, err := c.index.Artists.Find(id).Exec()
+	var artists []index.Artist
+	q := index.NewQuery("artist").Find(id)
+
+	err = self.db.Artists.Exec(q, &artists)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if len(*artists) == 0 {
+	if len(artists) == 0 {
 		http.NotFound(w, r)
 		return
 	}
 
-	artist := (*artists)[0]
-	albums, err := artist.Albums().OrderBy("name").Exec()
+	artist := artists[0]
+
+	q = artist.AlbumsQuery().Order("name")
+
+	var albums []index.Album
+
+	err = self.db.Albums.Exec(q, &albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.Albums = make([]nameURL, len(*albums))
+	self.Albums = make([]nameURL, len(albums))
 
 	// prepare structure for template
-	for i := 0; i < len(*albums); i++ {
-		c.Albums[i].Name = (*albums)[i].Name
-		c.Albums[i].URL = "#"
+	for i := 0; i < len(albums); i++ {
+		self.Albums[i].Name = albums[i].Name
+		self.Albums[i].URL = "#"
 	}
 
-	c.Breadcrumb = Breadcrump(r.URL.Path)
+	self.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
-	renderInPage(w, "index", c.Tmpl("artist"), c, artist.Name)
+	renderInPage(w, "index", self.Tmpl("artist"), self, artist.Name)
 }
 
-func (c *ControllerArtists) generatePager(letters, active string) {
+func (self *ControllerArtists) generatePager(letters, active string) {
 	// creating pager
-	c.Pager = make([]pager, len(letters))
+	self.Pager = make([]pager, len(letters))
 
 	for i := 0; i < len(letters); i++ {
 		if string(letters[i]) == active {
-			c.Pager[i].Active = true
+			self.Pager[i].Active = true
 		}
-		c.Pager[i].Label = string(letters[i])
+		self.Pager[i].Label = string(letters[i])
 		v := url.Values{}
 		v.Add("page", string(letters[i]))
-		c.Pager[i].Path = "/" + c.route + "?" + v.Encode()
+		self.Pager[i].Path = "/" + self.route + "?" + v.Encode()
 	}
 }
 
 // firstLetter shows a list of all artists whom's name starting with letter.
-func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
-
+func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
 	// get first letter of artists
-	letters, err := c.index.Artists.All().OrderBy("name").Letters("name")
+	q := index.NewQuery("artist").Order("name")
+	letters, err := self.db.Artists.Letters(q, "name")
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -145,26 +157,28 @@ func (c *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request
 	}
 
 	// populating data
-	artists, err := c.index.Artists.LikeQ(
-		index.Query{"name": string(letter) + "%"},
-	).Exec()
+	var artists []index.Artist
+
+	q = index.NewQuery("artist").Like("name", string(letter)+"%")
+
+	err = self.db.Artists.Exec(q, &artists)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.Artists = make([]nameURL, len(*artists))
+	self.Artists = make([]nameURL, len(artists))
 
 	// prepare structure for template
-	for i := 0; i < len(*artists); i++ {
-		c.Artists[i].Name = (*artists)[i].Name
-		c.Artists[i].URL = fmt.Sprintf("/%s/%d", c.route, (*artists)[i].Id)
+	for i := 0; i < len(artists); i++ {
+		self.Artists[i].Name = artists[i].Name
+		self.Artists[i].URL = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
 	}
 
-	c.generatePager(letters, string(letter))
-	c.Breadcrumb = Breadcrump(r.URL.Path)
+	self.generatePager(letters, string(letter))
+	self.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
-	renderInPage(w, "index", c.Tmpl("artists"), c,
+	renderInPage(w, "index", self.Tmpl("artists"), self,
 		"Artists starting with"+string(letter))
 }

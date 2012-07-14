@@ -18,11 +18,17 @@ package index
 
 import (
 	"database/sql"
+	"errors"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
 )
 
-type Index struct {
+var (
+	ErrNoOpenTransaction   = errors.New("No open transaction.")
+	ErrExistingTransaction = errors.New("There is an existing transaction.")
+)
+
+type Database struct {
 	Filename  string
 	db        *sql.DB
 	timestamp int64
@@ -35,9 +41,9 @@ type Index struct {
 	Tracks  *Tracks
 }
 
-// Creates a new Index struct and connects it to the database at filename.
+// Creates a new Database struct and connects it to the database at filename.
 // Needs to be closed with method Close()!
-func NewIndex(filename string) (*Index, error) {
+func NewDatabase(filename string) (*Database, error) {
 	_, err := os.Stat(filename)
 	newdatabase := os.IsNotExist(err)
 
@@ -46,56 +52,56 @@ func NewIndex(filename string) (*Index, error) {
 		return nil, err
 	}
 
-	i := &Index{Filename: filename, db: db}
+	datab := &Database{Filename: filename, db: db}
 
 	// Make it nosync and disable the journal
-	if _, err := i.db.Exec("PRAGMA synchronous=OFF"); err != nil {
+	if _, err := db.Exec("PRAGMA synchronous=OFF"); err != nil {
 		return nil, err
 	}
-	if _, err := i.db.Exec("PRAGMA journal_mode=OFF"); err != nil {
+	if _, err := db.Exec("PRAGMA journal_mode=OFF"); err != nil {
 		return nil, err
 	}
 
 	// initializing members
-	i.Artists = NewArtists(i)
-	i.Albums = NewAlbums(i)
-	i.Tracks = NewTracks(i)
+	datab.Artists = NewArtists(datab)
+	datab.Albums = NewAlbums(datab)
+	datab.Tracks = NewTracks(datab)
 
 	// If databsae file does not exist
 	if newdatabase {
-		if err := i.createDatabase(); err != nil {
+		if err := datab.createDatabase(); err != nil {
 			return nil, err
 		}
 	}
 
-	return i, nil
+	return datab, nil
 }
 
-func (i *Index) Timestamp() int64 {
-	return i.timestamp
+func (self *Database) Timestamp() int64 {
+	return self.timestamp
 }
 
 // Closes the opened database.
-func (i *Index) Close() {
-	i.db.Close()
+func (self *Database) Close() {
+	self.db.Close()
 }
 
 // Creates the basic database structure.
-func (i *Index) createDatabase() error {
-	if err := i.BeginTransaction(); err != nil {
+func (self *Database) createDatabase() error {
+	if err := self.BeginTransaction(); err != nil {
 		return err
 	}
-	defer i.EndTransaction()
+	defer self.EndTransaction()
 
-	if err := i.Artists.CreateDatabase(); err != nil {
-		return err
-	}
-
-	if err := i.Albums.CreateDatabase(); err != nil {
+	if err := self.Artists.CreateTable(); err != nil {
 		return err
 	}
 
-	if err := i.Tracks.CreateDatabase(); err != nil {
+	if err := self.Albums.CreateTable(); err != nil {
+		return err
+	}
+
+	if err := self.Tracks.CreateTable(); err != nil {
 		return err
 	}
 
@@ -103,38 +109,42 @@ func (i *Index) createDatabase() error {
 }
 
 // BeginTransaction starts a new database transaction.
-func (i *Index) BeginTransaction() (err error) {
-	if i.txOpen {
-		return &ErrExistingTransaction{}
+func (self *Database) BeginTransaction() (err error) {
+	if self.txOpen {
+		return ErrExistingTransaction
 	}
 
-	i.tx, err = i.db.Begin()
+	self.tx, err = self.db.Begin()
 	if err != nil {
 		return err
 	}
 
-	i.txOpen = true
+	self.txOpen = true
 
 	return nil
 }
 
 // EndTransaction closes a opened database transaction.
-func (i *Index) EndTransaction() error {
-	if !i.txOpen {
-		return &ErrNoOpenTransaction{}
+func (self *Database) EndTransaction() error {
+	if !self.txOpen {
+		return ErrNoOpenTransaction
 	}
 
-	i.txOpen = false
+	self.txOpen = false
 
-	return i.tx.Commit()
+	return self.tx.Commit()
 }
 
-type ErrNoOpenTransaction struct{}
+// Execute just executes sql query in global transaction.
+func (self *Database) Execute(sql string, args ...interface{}) error {
+	if !self.txOpen {
+		err := self.BeginTransaction()
+		if err != nil {
+			return err
+		}
+		defer self.EndTransaction()
+	}
 
-func (e *ErrNoOpenTransaction) Error() string { return "No open transaction." }
-
-type ErrExistingTransaction struct{}
-
-func (e *ErrExistingTransaction) Error() string {
-	return "There is an existing transaction."
+	_, err := self.tx.Exec(sql, args...)
+	return err
 }

@@ -22,13 +22,13 @@ import (
 )
 
 type Controller struct {
-	index *index.Index
+	db    *index.Database
 	tmpl  *template.Template
 	route string
 }
 
 // Constructor. Needs templates to register.
-func NewController(index *index.Index, route string, templates ...string) *Controller {
+func NewController(db *index.Database, route string, templates ...string) *Controller {
 	var tmpl *template.Template
 
 	if len(templates) > 0 {
@@ -39,7 +39,7 @@ func NewController(index *index.Index, route string, templates ...string) *Contr
 	}
 
 	return &Controller{
-		index: index,
+		db:    db,
 		route: route,
 		tmpl:  tmpl,
 	}
