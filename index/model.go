@@ -200,8 +200,6 @@ func (self *Model) QueryDB(sql string, args ...interface{}) ([]Result, error) {
 		defer self.db.EndTransaction()
 	}
 
-	fmt.Println(sql)
-
 	// do the actual query
 	rows, err := self.db.tx.Query(sql, args...)
 	if err != nil {
@@ -245,7 +243,8 @@ func (self *Model) QueryDB(sql string, args ...interface{}) ([]Result, error) {
 	return result, rows.Err()
 }
 
-// Exec queries the database.
+// Exec queries database with query and writes results into dest. Dest must be a
+// pointer to a slice of structs.
 func (self *Model) Exec(query *Query, dest interface{}) error {
 	//TIME
 	self.timer = time.Now()
@@ -320,7 +319,6 @@ func (self *Model) Count() (count int) {
 	return count
 }
 
-// TODO Optimize this query
 // Letters returns string of first letters in the column named column.
 func (self *Model) Letters(query *Query, column string) (string, error) {
 
