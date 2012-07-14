@@ -1,22 +1,22 @@
 {{define "content"}}
-<ul class='breadcrumb'>
+<ul class="breadcrumb">
 	{{range .Breadcrumb}}
 		{{if .Active}}
-			<li class='active'>
-				<a href='{{.Path}}'>{{.Label}}</a>
-				<span class='divider'>/</span>
+			<li class="active">
+				<a href="{{.Path}}">{{.Label}}</a>
+				<span class="divider">/</span>
 			</li>
 		{{else}}
 			<li>
-				<a href='{{.Path}}'>{{.Label}}</a>
-				<span class='divider'>/</span>
+				<a href="{{.Path}}">{{.Label}}</a>
+				<span class="divider">/</span>
 			</li>
 		{{end}}
 	{{end}}
 </ul>
 
-<div class='album-table'>
-	<table class='table table-condensed table-striped'>
+<div class="album-table">
+	<table class="table table-condensed table-striped">
 		<thead>
 			<tr>
 				<th>Artist</th>
@@ -26,7 +26,7 @@
 			{{range .Albums}}
 				<tr>
 					<td>
-						<a href='{{.Path}}'>
+						<a href="{{.Path}}">
 							{{.Album.Name}}
 						</a>
 					</td>

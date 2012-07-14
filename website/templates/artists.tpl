@@ -1,16 +1,16 @@
 {{define "content"}}
-<div class='btn-group' style='margin-bottom: 0.5em'>
+<div class="btn-group" style="margin-bottom: 0.5em">
 	{{range .Pager}}
 		{{if .Active}}
-			<a class='btn btn-primary' href='#'>{{.Label}}</a>
+			<a class="btn btn-primary" href="#">{{.Label}}</a>
 		{{else}}
-			<a class='btn' href='{{.Path}}'>{{.Label}}</a>
+			<a class="btn" href="{{.Path}}">{{.Label}}</a>
 		{{end}}
 	{{end}}
 </div>
 
-<div class='artist-table'>
-	<table class='table table-condensed table-striped'>
+<div class="artist-table">
+	<table class="table table-condensed table-striped">
 		<thead>
 			<tr>
 				<th>Artist</th>
@@ -20,7 +20,7 @@
 			{{range .Artists}}
 				<tr>
 					<td>
-						<a href='{{.Path}}'>
+						<a href="{{.Path}}">
 							{{.Artist.Name}}
 						</a>
 					</td>
