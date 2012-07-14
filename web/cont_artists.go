@@ -124,24 +124,24 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	var ts artistsSelectTmpl
-	ts.Albums = make([]albumLink, len(albums))
+	var td artistsSelectTmpl
+	td.Albums = make([]albumLink, len(albums))
 
 	// prepare structure for template
 	for i := 0; i < len(albums); i++ {
-		ts.Albums[i].Album = albums[i]
+		td.Albums[i].Album = albums[i]
 		//TODO don't hard code pathes
-		ts.Albums[i].Path = fmt.Sprintf("/%s/%d", "album", albums[i].Id)
+		td.Albums[i].Path = fmt.Sprintf("/%s/%d", "album", albums[i].Id)
 	}
 
-	ts.Breadcrumb = Breadcrump(r.URL.Path)
+	td.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
 	self.renderPage(
 		w,
 		"select",
 		&Page{Title: artist.Name},
-		ts,
+		td,
 	)
 }
 
@@ -195,22 +195,22 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var ts artistsIndexTmpl
-	ts.Artists = make([]artistLink, len(artists))
+	var td artistsIndexTmpl
+	td.Artists = make([]artistLink, len(artists))
 
 	// prepare structure for template
 	for i := 0; i < len(artists); i++ {
-		ts.Artists[i].Artist = artists[i]
-		ts.Artists[i].Path = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
+		td.Artists[i].Artist = artists[i]
+		td.Artists[i].Path = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
 	}
 
-	ts.Pager = self.generatePager(letters, string(letter))
+	td.Pager = self.generatePager(letters, string(letter))
 
 	// render the website
 	self.renderPage(
 		w,
 		"index",
 		&Page{Title: "Artists starting with" + string(letter)},
-		ts,
+		td,
 	)
 }
