@@ -23,6 +23,15 @@ import (
 	"strconv"
 )
 
+type trackLink struct {
+	Track index.Track
+	Path  string
+}
+
+type albumsSelectTmpl struct {
+	Tracks []trackLink
+}
+
 // Controller to serve artists
 type ControllerAlbums struct {
 	Controller
@@ -58,12 +67,28 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 	defer self.db.EndTransaction()
 
 	var album index.Album
-	q := index.NewQuery(self.db, "album").Find(id)
 
-	err = q.Exec(&album)
+	err = index.NewQuery(self.db, "album").Find(id).Exec(&album)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	var tracks []index.Track
+
+	err = album.TracksQuery(self.db).Order("tracknumber").Exec(&tracks)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var td albumsSelectTmpl
+	td.Tracks = make([]trackLink, len(tracks))
+
+	// prepare structure for template
+	for i := 0; i < len(tracks); i++ {
+		td.Tracks[i].Track = tracks[i]
+		td.Tracks[i].Path = "#"
 	}
 
 	// render the website
@@ -71,6 +96,6 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 		w,
 		"select",
 		&Page{Title: album.Name},
-		nil,
+		td,
 	)
 }

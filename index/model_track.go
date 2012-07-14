@@ -44,3 +44,7 @@ type Track struct {
 	Filemtime   int    `column:"filemtime"`
 	DBMtime     int    `column:"dbmtime"`
 }
+
+func (self *Track) AlbumQuery(db *Database) *Query {
+	return NewQuery(db, "album").Where("ID =", self.AlbumID)
+}
