@@ -123,7 +123,9 @@ func (self *Query) Decode(src Result, dest interface{}) error {
 	return nil
 }
 
-// DecodeAll does what Decode does but with a couple of results.
+// DecodeAll decodes a slice of results. If there is only one result, dest can
+// be a pointer to a struct. If there are more result, dest must be a pointer to
+// a slice of structs.
 func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Ptr ||
@@ -132,6 +134,7 @@ func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 		return fmt.Errorf("dest must be a pointer to a slice or a struct.")
 	}
 
+	// if just one struct is given, it is unnecessary to return a slice
 	if v.Elem().Kind() == reflect.Struct {
 		if len(src) != 1 {
 			return fmt.Errorf("Can't write data from database to single " +
