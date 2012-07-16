@@ -19,7 +19,7 @@
 	<table class="table table-condensed table-striped">
 		<thead>
 			<tr>
-				<th>Artist</th>
+				<th>Album</th>
 			</tr>
 		</thead>
 		<tbody>
