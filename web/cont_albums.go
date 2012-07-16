@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"musicrawler/index"
 	"net/http"
+	"path/filepath"
 	"strconv"
 )
 
@@ -96,7 +97,8 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 	// prepare structure for template
 	for i := 0; i < len(tracks); i++ {
 		td.Tracks[i].Track = tracks[i]
-		td.Tracks[i].Path = "#"
+		td.Tracks[i].Path = fmt.Sprintf("/%s/%d/%s",
+			"content", tracks[i].Id, filepath.Base(tracks[i].Path))
 	}
 
 	// render the website

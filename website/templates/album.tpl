@@ -20,12 +20,12 @@
 				<tr>
 					<td>
 						<div class="sm2-inline-list ui360">
-							<a href="/content{{.Track.Path}}" title="Play"></a>
+							<a href="{{.Path}}" title="Play"></a>
 						</div>
 					</td>
 					<td>{{.Track.Artist}}</td>
 					<td>{{.Track.Album}}</td>
-					<td>{{.Track.Title}}</td>
+					<td><a href="{{.Path}}">{{.Track.Title}}</a></td>
 					<td>{{.Track.Tracknumber}}</td>
 					<td>{{.Track.Year}}</td>
 					<td>{{.Track.LengthString}}</td>

@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"musicrawler/index"
 	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 type ControllerContent struct {
@@ -31,31 +34,27 @@ func NewControllerContent(db *index.Database, route string) *ControllerContent {
 }
 
 // Serving a audio file that has an entry in the database.
-func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, path string) {
-	var tracks []index.Track
+func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, selector string) {
+	// Remove .mp3/.ogg
+	base := filepath.Base(selector)
+	if len(base) != 0 {
+		selector = selector[:strings.LastIndex(selector, "/")]
+	}
 
-	valid := false
+	id, err := strconv.Atoi(selector)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	err := index.NewQuery(self.db, "track").Exec(&tracks)
+	var track index.Track
+
+	err = index.NewQuery(self.db, "track").Find(id).Exec(&track)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	path = "/" + path
+	http.ServeFile(w, r, track.Path)
 
-	for _, val := range tracks {
-		if path == val.Path {
-			valid = true
-			break
-		}
-	}
-
-	if !valid {
-		http.NotFound(w, r)
-		return
-	}
-
-	http.ServeFile(w, r, path)
-
-	msg(fmt.Sprintf("Serving \"%s\" to %s", path, r.RemoteAddr), nil)
+	msg(fmt.Sprintf("Serving \"%s\" to %s", track.Path, r.RemoteAddr), nil)
 }
