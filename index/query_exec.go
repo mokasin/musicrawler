@@ -77,7 +77,12 @@ func (self *Query) QueryDB(sql string, args ...interface{}) ([]Result, error) {
 // Exec queries database with query and writes results into dest. Dest must be a
 // pointer to a slice of structs.
 func (self *Query) Exec(dest interface{}) error {
-	sql := self.toSQL()
+	col, err := self.ExtractColumns(dest)
+	if err != nil {
+		return err
+	}
+
+	sql := self.columns(col...).toSQL()
 
 	res, err := self.QueryDB(sql.SQL, sql.Args...)
 	if err != nil {

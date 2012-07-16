@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 var ErrWrongType error = errors.New("Wrong type.")
@@ -69,7 +70,7 @@ func (self *Query) Decode(src Result, dest interface{}) error {
 	v = v.Elem()
 	t := v.Type()
 
-	for i := 0; i < v.NumField(); i++ {
+	for i := 0; i < t.NumField(); i++ {
 		// is the field exported?
 		if t.Field(i).PkgPath != "" {
 			continue
@@ -156,4 +157,44 @@ func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 	}
 
 	return nil
+}
+
+// ExtractColumns extracts the column names from a struct's tags
+// and returns them as a slice. str must be a pointer to a struct.
+// 
+// The tag must have the form
+//
+// 		column:"table:columname"
+//
+// 'table' is optional.
+func (self *Query) ExtractColumns(str interface{}) (columns []string, err error) {
+	v := reflect.ValueOf(str)
+
+	if v.Kind() != reflect.Ptr ||
+		(v.Elem().Kind() != reflect.Slice &&
+			v.Elem().Kind() != reflect.Struct) {
+		return nil, fmt.Errorf("str must be a pointer to a slice or a struct.")
+	}
+
+	v = v.Elem()
+	t := v.Type()
+
+	// if just one struct is given, it is unnecessary to return a slice
+	if v.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		tag := t.Field(i).Tag.Get("column")
+
+		// ignore fields with empty tag
+		if tag == "" {
+			continue
+		}
+
+		tag = strings.Replace(tag, ":", ".", 1)
+		columns = append(columns, tag)
+	}
+
+	return columns, nil
 }

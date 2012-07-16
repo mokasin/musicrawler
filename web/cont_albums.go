@@ -80,9 +80,6 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 	q := album.TracksQuery(self.db)
 	q.Join("album", "id", "", "album_id")
 	q.Join("artist", "id", "album", "artist_id")
-	q.Columns("track.ID", "track.path", "track.title", "track.tracknumber",
-		"track.year", "track.length", "track.genre", "track.filemtime",
-		"track.dbmtime", "artist.name", "album.name")
 
 	err = q.Order("tracknumber").Exec(&tracks)
 

@@ -57,13 +57,13 @@ type Query struct {
 	table string
 	db    *Database
 
-	columns []string
-	join    []join
-	where   []where
-	like    []like
-	order   []order
-	limit   uint
-	offset  uint
+	cols   []string
+	join   []join
+	where  []where
+	like   []like
+	order  []order
+	limit  uint
+	offset uint
 
 	err error
 }
@@ -81,16 +81,16 @@ type sqlQuery struct {
 
 // toSQL encodes the query into an SQL-Query.
 func (q *Query) toSQL() *sqlQuery {
-	var columns, join, where, order, limit, offset string
+	var cols, join, where, order, limit, offset string
 	sql := &sqlQuery{}
 
-	if len(q.columns) == 0 {
-		columns = q.table + ".*"
+	if len(q.cols) == 0 {
+		cols = q.table + ".*"
 	} else {
-		for i, v := range q.columns {
-			columns += v + " AS \"" + strings.Replace(v, ".", ":", -1) + "\""
-			if i < len(q.columns)-1 {
-				columns += ","
+		for i, v := range q.cols {
+			cols += v + " AS \"" + strings.Replace(v, ".", ":", -1) + "\""
+			if i < len(q.cols)-1 {
+				cols += ","
 			}
 		}
 	}
@@ -151,22 +151,22 @@ func (q *Query) toSQL() *sqlQuery {
 		sql.Args = append(sql.Args, q.offset)
 	}
 
-	sql.SQL = "SELECT " + columns + " FROM " +
+	sql.SQL = "SELECT " + cols + " FROM " +
 		q.table + join + where + order + limit + offset
 
 	return sql
 }
 
-// Columns returns a derivated Query that returns only the given columns. A '*'
-// selects all available columns.
+// columns returns a derivated Query that returns only the given cols. A '*'
+// selects all available cols.
 //
-// columns must have the format:
+// cols must have the format:
 //
 // 		<table>.<column>
 //
 // Multiple calls overwrite the previous one.
-func (q *Query) Columns(columns ...string) *Query {
-	q.columns = columns
+func (q *Query) columns(cols ...string) *Query {
+	q.cols = cols
 	return q
 }
 
