@@ -20,7 +20,8 @@ import (
 	"fmt"
 )
 
-// QueryDB TODO: Documentation needed.
+// QueryDB queries the database with a given SQL-string and arguments args and
+// returns the result as a map from column name to its value.
 func (self *Query) QueryDB(sql string, args ...interface{}) ([]Result, error) {
 	if !self.db.txOpen {
 		err := self.db.BeginTransaction()
@@ -73,7 +74,6 @@ func (self *Query) QueryDB(sql string, args ...interface{}) ([]Result, error) {
 	return result, rows.Err()
 }
 
-// TODO automatically select columns using tags of given struct.
 // Exec queries database with query and writes results into dest. Dest must be a
 // pointer to a slice of structs.
 func (self *Query) Exec(dest interface{}) error {

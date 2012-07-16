@@ -158,7 +158,7 @@ func (q *Query) toSQL() *sqlQuery {
 }
 
 // columns returns a derivated Query that returns only the given cols. A '*'
-// selects all available cols.
+// selects all available columns.
 //
 // cols must have the format:
 //
