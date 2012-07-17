@@ -25,7 +25,7 @@ import (
 )
 
 type trackLink struct {
-	Track index.JoinedTrack
+	Track index.Track
 	Path  string
 }
 
@@ -75,7 +75,7 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 		return
 	}
 
-	var tracks []index.JoinedTrack
+	var tracks []index.Track
 
 	q := album.TracksQuery(self.db)
 	q.Join("album", "id", "", "album_id")

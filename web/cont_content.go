@@ -29,6 +29,11 @@ type ControllerContent struct {
 	Controller
 }
 
+type trackPathId struct {
+	Id   int    `column:"ID"`
+	Path string `column:"path"`
+}
+
 func NewControllerContent(db *index.Database, route string) *ControllerContent {
 	return &ControllerContent{Controller: *NewController(db, route)}
 }
@@ -47,7 +52,7 @@ func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	var track index.Track
+	var track trackPathId
 
 	err = index.NewQuery(self.db, "track").Find(id).Exec(&track)
 	if err != nil {
