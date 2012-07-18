@@ -18,18 +18,18 @@ package main
 
 import (
 	"container/list"
-	"musicrawler/index"
+	"musicrawler/lib/database"
 	"musicrawler/source"
 )
 
 // Struct to manage different track sources
 type SourceList struct {
 	sources *list.List
-	db      *index.Database
+	db      *database.Database
 }
 
 // Constructor of Sources.
-func NewSourceList(db *index.Database) *SourceList {
+func NewSourceList(db *database.Database) *SourceList {
 	return &SourceList{
 		sources: list.New(),
 		db:      db,
@@ -46,16 +46,16 @@ func (self *SourceList) Remove(e *list.Element) {
 	self.sources.Remove(e)
 }
 
-func (self *SourceList) Update(statusChannel chan *index.UpdateStatus,
+func (self *SourceList) Update(statusChannel chan *UpdateStatus,
 	result chan error) {
 
 	trackInfoChannel := make(chan source.TrackInfo, 100)
-	updateResultChannel := make(chan *index.UpdateResult)
+	updateResultChannel := make(chan *UpdateResult)
 	doneChannel := make(chan bool)
 
-	// Output of crawler(self) connects to the input of index.Update() over
+	// Output of crawler(self) connects to the input of database.Update() over
 	// trackInfoChannel channel
-	go self.db.Update(trackInfoChannel, statusChannel, updateResultChannel)
+	go UpdateDatabase(self.db, trackInfoChannel, statusChannel, updateResultChannel)
 
 	running := 0
 
@@ -75,7 +75,7 @@ func (self *SourceList) Update(statusChannel chan *index.UpdateStatus,
 		close(trackInfoChannel)
 	}()
 
-	// wait for index.Update to finish
+	// wait for database.Update to finish
 	r := <-updateResultChannel
 	result <- r.Err
 }

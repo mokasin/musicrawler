@@ -14,13 +14,15 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package database
 
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
+	"time"
 )
 
 var (
@@ -28,13 +30,21 @@ var (
 	ErrExistingTransaction = errors.New("There is an existing transaction.")
 )
 
+type CreateTableFunc func(db *Database) error
+
+// A Result is a mapping from column name to its value.
+type Result map[string]interface{}
+
 type Database struct {
 	Filename  string
 	db        *sql.DB
 	timestamp int64
 
-	tx     *sql.Tx // global transaction
-	txOpen bool    // flag true, when exists an open transaction
+	tx       *sql.Tx // global transaction
+	txOpen   bool    // flag true, when exists an open transaction
+	fctables []CreateTableFunc
+
+	newDB bool
 }
 
 // Creates a new Database struct and connects it to the database at filename.
@@ -48,7 +58,7 @@ func NewDatabase(filename string) (*Database, error) {
 		return nil, err
 	}
 
-	datab := &Database{Filename: filename, db: db}
+	datab := &Database{Filename: filename, db: db, newDB: newdatabase}
 
 	// Make it nosync and disable the journal
 	if _, err := db.Exec("PRAGMA synchronous=OFF"); err != nil {
@@ -56,13 +66,6 @@ func NewDatabase(filename string) (*Database, error) {
 	}
 	if _, err := db.Exec("PRAGMA journal_mode=OFF"); err != nil {
 		return nil, err
-	}
-
-	// If databsae file does not exist
-	if newdatabase {
-		if err := datab.createDatabase(); err != nil {
-			return nil, err
-		}
 	}
 
 	return datab, nil
@@ -78,25 +81,35 @@ func (self *Database) Close() {
 }
 
 // Creates the basic database structure.
-func (self *Database) createDatabase() error {
+func (self *Database) CreateDatabase() error {
+	if !self.newDB {
+		return fmt.Errorf(
+			"Can't create new database. A database already exists.")
+	}
+
+	if len(self.fctables) == 0 {
+		return fmt.Errorf("Can't create database. " +
+			"No functions to create the tables are registered.")
+	}
+
 	if err := self.BeginTransaction(); err != nil {
 		return err
 	}
 	defer self.EndTransaction()
 
-	if err := CreateArtistTable(self); err != nil {
-		return err
-	}
-
-	if err := CreateAlbumTable(self); err != nil {
-		return err
-	}
-
-	if err := CreateTrackTable(self); err != nil {
-		return err
+	for _, t := range self.fctables {
+		err := t(self)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// Add registers a new function to create a table.
+func (self *Database) Register(m CreateTableFunc) {
+	self.fctables = append(self.fctables, m)
 }
 
 // BeginTransaction starts a new database transaction.
@@ -109,6 +122,9 @@ func (self *Database) BeginTransaction() (err error) {
 	if err != nil {
 		return err
 	}
+
+	// Updating timestamp
+	self.timestamp = time.Now().Unix()
 
 	self.txOpen = true
 
@@ -127,15 +143,69 @@ func (self *Database) EndTransaction() error {
 }
 
 // Execute just executes sql query in global transaction.
-func (self *Database) Execute(sql string, args ...interface{}) error {
+func (self *Database) Execute(sql string, args ...interface{}) (res sql.Result, err error) {
 	if !self.txOpen {
-		err := self.BeginTransaction()
+		err = self.BeginTransaction()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer self.EndTransaction()
 	}
 
-	_, err := self.tx.Exec(sql, args...)
-	return err
+	res, err = self.tx.Exec(sql, args...)
+	return res, err
+}
+
+// QueryDB queries the database with a given SQL-string and arguments args and
+// returns the result as a map from column name to its value.
+func (self *Database) Query(sql string, args ...interface{}) ([]Result, error) {
+	if !self.txOpen {
+		err := self.BeginTransaction()
+		if err != nil {
+			return nil, err
+		}
+		defer self.EndTransaction()
+	}
+
+	// do the actual query
+	rows, err := self.tx.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// find out about the columns in the database
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	// prepare result
+	var result []Result
+
+	// stupid trick, because rows.Scan will not take []interface as args
+	col_vals := make([]interface{}, len(columns))
+	col_args := make([]interface{}, len(columns))
+
+	// initialize col_args
+	for i := 0; i < len(columns); i++ {
+		col_args[i] = &col_vals[i]
+	}
+
+	// read out columns and save them in a Result map
+	for rows.Next() {
+		if err := rows.Scan(col_args...); err != nil {
+			return nil, err
+		}
+
+		res := make(Result)
+
+		for i := 0; i < len(columns); i++ {
+			res[columns[i]] = col_vals[i]
+		}
+
+		result = append(result, res)
+	}
+
+	return result, rows.Err()
 }

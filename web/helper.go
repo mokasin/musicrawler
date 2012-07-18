@@ -16,7 +16,10 @@
 
 package web
 
-import "strings"
+import (
+	"musicrawler/lib/web/router"
+	"strings"
+)
 
 type link struct {
 	Label string
@@ -29,7 +32,7 @@ type activelink struct {
 }
 
 func Breadcrump(path string) (r []activelink) {
-	tokens := ParseURL(path)
+	tokens := router.ParseURL(path)
 
 	r = make([]activelink, len(tokens))
 	for i := 0; i < len(tokens); i++ {

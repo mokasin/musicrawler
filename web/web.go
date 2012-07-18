@@ -17,7 +17,8 @@
 package web
 
 import (
-	"musicrawler/index"
+	"musicrawler/lib/database"
+	"musicrawler/lib/web/router"
 	"net/http"
 	"time"
 )
@@ -45,25 +46,25 @@ func msg(msg string, err error) {
 
 // Manages a HTTP server to serve audio files saved in database. 
 type HTTPTrackServer struct {
-	db     *index.Database
-	router *Router
+	db     *database.Database
+	router *router.Router
 }
 
 // Constructor of HTTPTrackServer. Needs an db.db to work on.
-func NewHTTPTrackServer(i *index.Database, stat chan<- *Status) *HTTPTrackServer {
+func NewHTTPTrackServer(i *database.Database, stat chan<- *Status) *HTTPTrackServer {
 	// set global variable
 	statusChannel = stat
 
-	return &HTTPTrackServer{db: i, router: NewRouter()}
+	return &HTTPTrackServer{db: i, router: router.NewRouter()}
 }
 
 // Starts http server on port 8080 and set routes.
 func (self *HTTPTrackServer) StartListing() {
 	// Adding routes
 
-	self.router.AddRoute("artist", NewControllerArtists(self.db, "artist"))
-	self.router.AddRoute("album", NewControllerAlbums(self.db, "album"))
-	self.router.AddRoute("content", NewControllerContent(self.db, "content"))
+	self.router.AddRoute("artist", NewControllerArtists(self.db, "artist", websitePath))
+	self.router.AddRoute("album", NewControllerAlbums(self.db, "album", websitePath))
+	self.router.AddRoute("content", NewControllerContent(self.db, "content", websitePath))
 
 	self.router.SetDefaultRoute("artist")
 
@@ -73,7 +74,7 @@ func (self *HTTPTrackServer) StartListing() {
 
 	// let the router handle the rest
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		self.router.routeHandler(w, req)
+		self.router.RouteHandler(w, req)
 	})
 
 	// and start the server.

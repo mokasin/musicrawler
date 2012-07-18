@@ -19,10 +19,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	//"runtime/pprof"
-	"musicrawler/index"
+	"log"
+	"musicrawler/lib/database"
+	"musicrawler/model"
 	"musicrawler/source/filecrawler"
 	"musicrawler/web"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -33,7 +36,7 @@ func updateTracks() {
 
 	actionMsg := []string{"-", "M", "A"}
 
-	statusChannel := make(chan *index.UpdateStatus, 100)
+	statusChannel := make(chan *UpdateStatus, 100)
 	resultChannel := make(chan error)
 
 	timeStart := time.Now()
@@ -56,9 +59,9 @@ func updateTracks() {
 			}
 
 			switch status.Action {
-			case index.TRACK_UPDATE:
+			case TRACK_UPDATE:
 				updated++
-			case index.TRACK_ADD:
+			case TRACK_ADD:
 				added++
 			}
 		}
@@ -83,32 +86,42 @@ var sourceList *SourceList
 
 func main() {
 	var dbFileName string
-	//var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&dbFileName, "database", "index.db", "path to database")
 	updateFlag := flag.Bool("u", true, "update database")
 	flag.Parse()
 
-	////PROFILER START
-	//if *cpuprofile != "" {
-	//	f, err := os.Create(*cpuprofile)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	pprof.StartCPUProfile(f)
-	//	defer pprof.StopCPUProfile()
-	//}
-	////PROFILER END
+	//PROFILER START
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+	//PROFILER END
 
 	fmt.Printf("musicrawler v. %s\n", version)
 	fmt.Println("-> Open database:", dbFileName)
 
 	// open or create database
-	mydb, err := index.NewDatabase(dbFileName)
+	mydb, err := database.NewDatabase(dbFileName)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		return
 	}
 	defer mydb.Close()
+
+	// Create database tables
+	mydb.Register(model.CreateArtistTable)
+	mydb.Register(model.CreateAlbumTable)
+	mydb.Register(model.CreateTrackTable)
+
+	err = mydb.CreateDatabase()
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	sourceList = NewSourceList(mydb)
 

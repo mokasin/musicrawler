@@ -18,14 +18,17 @@ package web
 
 import (
 	"fmt"
-	"musicrawler/index"
+	"musicrawler/lib/database"
+	"musicrawler/lib/database/query"
+	"musicrawler/lib/web/controller"
+	"musicrawler/model"
 	"net/http"
 	"path/filepath"
 	"strconv"
 )
 
 type trackLink struct {
-	Track index.Track
+	Track model.Track
 	Path  string
 }
 
@@ -35,13 +38,13 @@ type albumsSelectTmpl struct {
 
 // Controller to serve artists
 type ControllerAlbums struct {
-	Controller
+	controller.Controller
 }
 
 // Constructor.
-func NewControllerAlbums(db *index.Database, route string) *ControllerAlbums {
+func NewControllerAlbums(db *database.Database, route, filepath string) *ControllerAlbums {
 	c := &ControllerAlbums{
-		Controller: *NewController(db, route),
+		controller.Controller: *controller.NewController(db, route, filepath),
 	}
 
 	c.AddTemplate("select", "index", "album")
@@ -61,23 +64,23 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 		return
 	}
 
-	if err := self.db.BeginTransaction(); err != nil {
+	if err := self.Db.BeginTransaction(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer self.db.EndTransaction()
+	defer self.Db.EndTransaction()
 
-	var album index.Album
+	var album model.Album
 
-	err = index.NewQuery(self.db, "album").Find(id).Exec(&album)
+	err = query.NewQuery(self.Db, "album").Find(id).Exec(&album)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var tracks []index.Track
+	var tracks []model.Track
 
-	q := album.TracksQuery(self.db)
+	q := album.TracksQuery(self.Db)
 	q.Join("album", "id", "", "album_id")
 	q.Join("artist", "id", "album", "artist_id")
 
@@ -99,10 +102,10 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 	}
 
 	// render the website
-	self.renderPage(
+	self.RenderPage(
 		w,
 		"select",
-		&Page{Title: album.Name},
+		&controller.Page{Title: album.Name},
 		td,
 	)
 }

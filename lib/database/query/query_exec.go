@@ -14,83 +14,30 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package query
 
 import (
 	"fmt"
+	. "musicrawler/lib/database/encoding"
 )
-
-// QueryDB queries the database with a given SQL-string and arguments args and
-// returns the result as a map from column name to its value.
-func (self *Query) QueryDB(sql string, args ...interface{}) ([]Result, error) {
-	if !self.db.txOpen {
-		err := self.db.BeginTransaction()
-		if err != nil {
-			return nil, err
-		}
-		defer self.db.EndTransaction()
-	}
-
-	// do the actual query
-	rows, err := self.db.tx.Query(sql, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	// find out about the columns in the database
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	// prepare result
-	var result []Result
-
-	// stupid trick, because rows.Scan will not take []interface as args
-	col_vals := make([]interface{}, len(columns))
-	col_args := make([]interface{}, len(columns))
-
-	// initialize col_args
-	for i := 0; i < len(columns); i++ {
-		col_args[i] = &col_vals[i]
-	}
-
-	// read out columns and save them in a Result map
-	for rows.Next() {
-		if err := rows.Scan(col_args...); err != nil {
-			return nil, err
-		}
-
-		res := make(Result)
-
-		for i := 0; i < len(columns); i++ {
-			res[columns[i]] = col_vals[i]
-		}
-
-		result = append(result, res)
-	}
-
-	return result, rows.Err()
-}
 
 // Exec queries database with query and writes results into dest. Dest must be a
 // pointer to a slice of structs.
 func (self *Query) Exec(dest interface{}) error {
-	col, err := self.ExtractColumns(dest)
+	col, err := ExtractColumns(dest)
 	if err != nil {
 		return err
 	}
 
 	sql := self.columns(col...).toSQL()
 
-	res, err := self.QueryDB(sql.SQL, sql.Args...)
+	res, err := self.db.Query(sql.SQL, sql.Args...)
 	if err != nil {
 		return err
 	}
 
 	// writing result into structs given by the caller
-	err = self.DecodeAll(res, dest)
+	err = DecodeAll(res, dest)
 	if err != nil {
 		return err
 	}
@@ -104,7 +51,7 @@ func (self *Query) Count() (int, error) {
 
 	sql := fmt.Sprintf("SELECT COUNT(*) FROM (%s)", sqlQuery.SQL)
 
-	res, err := self.QueryDB(sql, sqlQuery.Args...)
+	res, err := self.db.Query(sql, sqlQuery.Args...)
 	if err != nil {
 		return -1, err
 	}
@@ -128,7 +75,7 @@ func (self *Query) Letters(column string) (string, error) {
 	sql := fmt.Sprintf("SELECT DISTINCT SUBSTR(UPPER(%s),1,1) FROM (%s)",
 		column, sqlQuery.SQL)
 
-	res, err := self.QueryDB(sql, sqlQuery.Args...)
+	res, err := self.db.Query(sql, sqlQuery.Args...)
 	if err != nil {
 		return "", err
 	}

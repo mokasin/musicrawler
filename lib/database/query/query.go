@@ -14,10 +14,11 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package query
 
 import (
 	"fmt"
+	. "musicrawler/lib/database"
 	"strings"
 )
 
@@ -80,79 +81,79 @@ type sqlQuery struct {
 }
 
 // toSQL encodes the query into an SQL-Query.
-func (q *Query) toSQL() *sqlQuery {
+func (self *Query) toSQL() *sqlQuery {
 	var cols, join, where, order, limit, offset string
 	sql := &sqlQuery{}
 
-	if len(q.cols) == 0 {
-		cols = q.table + ".*"
+	if len(self.cols) == 0 {
+		cols = self.table + ".*"
 	} else {
-		for i, v := range q.cols {
+		for i, v := range self.cols {
 			cols += v + " AS \"" + strings.Replace(v, ".", ":", -1) + "\""
-			if i < len(q.cols)-1 {
+			if i < len(self.cols)-1 {
 				cols += ","
 			}
 		}
 	}
 
-	for _, v := range q.join {
+	for _, v := range self.join {
 		join += fmt.Sprintf(" JOIN %s ON %s.%s = %s.%s",
 			v.OnTable,
 			v.OwnTable, v.OwnFieldName,
 			v.OnTable, v.OnFieldName)
 	}
 
-	if len(q.where) > 0 || len(q.like) > 0 {
+	if len(self.where) > 0 || len(self.like) > 0 {
 		where = " WHERE"
 	}
 
-	for i, v := range q.where {
+	for i, v := range self.where {
 		where += " " + v.Constriction + " ?"
 
-		if i < len(q.where)-1 {
+		if i < len(self.where)-1 {
 			where += " AND"
 		}
 
 		sql.Args = append(sql.Args, v.Value)
 	}
 
-	if len(q.where) > 0 && len(q.like) > 0 {
+	if len(self.where) > 0 && len(self.like) > 0 {
 		where += " AND"
 	}
 
-	for i, v := range q.like {
+	for i, v := range self.like {
 		where += " " + v.Constriction + " LIKE ?"
 
-		if i < len(q.like)-1 {
+		if i < len(self.like)-1 {
 			where += " AND"
 		}
 
 		sql.Args = append(sql.Args, v.Value)
 	}
 
-	if len(q.order) > 0 {
+	if len(self.order) > 0 {
 		order = " ORDER BY "
 	}
-	for i, v := range q.order {
+	for i, v := range self.order {
 		order += v.FieldName + " " + sortDirectionToSQL[v.Direction]
 
-		if i < len(q.order)-1 {
+		if i < len(self.order)-1 {
 			order += ","
 		}
 	}
 
-	if q.limit != 0 {
+	if self.limit != 0 {
 		limit = " LIMIT ?"
-		sql.Args = append(sql.Args, q.limit)
+		sql.Args = append(sql.Args, self.limit)
 	}
 
-	if q.offset != 0 {
+	if self.offset != 0 {
 		offset = " OFFSET ?"
-		sql.Args = append(sql.Args, q.offset)
+		sql.Args = append(sql.Args, self.offset)
 	}
 
 	sql.SQL = "SELECT " + cols + " FROM " +
-		q.table + join + where + order + limit + offset
+		self.table + join + where + order + limit + offset
 
 	return sql
 }
@@ -165,27 +166,27 @@ func (q *Query) toSQL() *sqlQuery {
 // 		<table>.<column>
 //
 // Multiple calls overwrite the previous one.
-func (q *Query) columns(cols ...string) *Query {
-	q.cols = cols
-	return q
+func (self *Query) columns(cols ...string) *Query {
+	self.cols = cols
+	return self
 }
 
 // Join returns a derivated Query that joins onTable and ownTable with respect
 // to the fields onFieldName and ownFieldname.
-// If ownFieldname is an empty string "", q.table is used.
-func (q *Query) Join(onTable, onFieldName, ownTable, ownFieldName string) *Query {
+// If ownFieldname is an empty string "", self.table is used.
+func (self *Query) Join(onTable, onFieldName, ownTable, ownFieldName string) *Query {
 	if ownTable == "" {
-		ownTable = q.table
+		ownTable = self.table
 	}
 
-	q.join = append(q.join, join{
+	self.join = append(self.join, join{
 		OnTable:      onTable,
 		OnFieldName:  onFieldName,
 		OwnTable:     ownTable,
 		OwnFieldName: ownFieldName,
 	})
 
-	return q
+	return self
 }
 
 // Where returns a derivated Query with an applied constriction. The
@@ -200,14 +201,14 @@ func (q *Query) Join(onTable, onFieldName, ownTable, ownFieldName string) *Query
 //
 // 		Where("ID >", 5)
 //
-func (q *Query) Where(constriction string, value interface{}) *Query {
-	q.where = append(q.where, where{constriction, value})
-	return q
+func (self *Query) Where(constriction string, value interface{}) *Query {
+	self.where = append(self.where, where{constriction, value})
+	return self
 }
 
 // Find is just an alias for matching the ID.
-func (q *Query) Find(ID int) *Query {
-	return q.Where("ID =", ID)
+func (self *Query) Find(ID int) *Query {
+	return self.Where("ID =", ID)
 }
 
 // Like returns a derivated Query with an applied constriction. The
@@ -223,15 +224,15 @@ func (q *Query) Find(ID int) *Query {
 //
 // 		Like("name", "A%")
 //
-func (q *Query) Like(constriction string, value string) *Query {
-	q.like = append(q.like, like{constriction, value})
-	return q
+func (self *Query) Like(constriction string, value string) *Query {
+	self.like = append(self.like, like{constriction, value})
+	return self
 }
 
 // Order returns a derivated Query that the results are ordered by the given
 // fieldName. If the fieldName is prefixed with a minus sign '-' the ordering is
 // descending. Multiple orderings are applied in order of call.
-func (q *Query) Order(fieldName string) *Query {
+func (self *Query) Order(fieldName string) *Query {
 	var o order
 	if strings.HasPrefix(fieldName, "-") {
 		o = order{
@@ -245,21 +246,21 @@ func (q *Query) Order(fieldName string) *Query {
 		}
 	}
 
-	q.order = append(q.order, o)
+	self.order = append(self.order, o)
 
-	return q
+	return self
 }
 
 // Limit returns a derivated Query that the number of results are limited to
 // limit. Multiple calls just overrides the previous one.
-func (q *Query) Limit(limit uint) *Query {
-	q.limit = limit
-	return q
+func (self *Query) Limit(limit uint) *Query {
+	self.limit = limit
+	return self
 }
 
 // Offset returns a derivated Query that has an offset of how many results are
 // are skipped. Multiple calls just override the previous one.
-func (q *Query) Offset(offset uint) *Query {
-	q.offset = offset
-	return q
+func (self *Query) Offset(offset uint) *Query {
+	self.offset = offset
+	return self
 }
