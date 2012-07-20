@@ -49,7 +49,7 @@ func (self *Query) Exec(dest interface{}) error {
 func (self *Query) Count() (int, error) {
 	sqlQuery := self.toSQL()
 
-	sql := fmt.Sprintf("SELECT COUNT(*) FROM (%s)", sqlQuery.SQL)
+	sql := "SELECT COUNT(*) FROM (" + sqlQuery.SQL + ")"
 
 	res, err := self.db.Query(sql, sqlQuery.Args...)
 	if err != nil {
@@ -72,8 +72,8 @@ func (self *Query) Count() (int, error) {
 func (self *Query) Letters(column string) (string, error) {
 	sqlQuery := self.toSQL()
 
-	sql := fmt.Sprintf("SELECT DISTINCT SUBSTR(UPPER(%s),1,1) FROM (%s)",
-		column, sqlQuery.SQL)
+	sql := "SELECT DISTINCT SUBSTR(UPPER(" + column + "),1,1) FROM (" +
+		sqlQuery.SQL + ")"
 
 	res, err := self.db.Query(sql, sqlQuery.Args...)
 	if err != nil {

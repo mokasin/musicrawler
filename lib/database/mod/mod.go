@@ -17,7 +17,6 @@
 package mod
 
 import (
-	"fmt"
 	. "musicrawler/lib/database"
 	"musicrawler/lib/database/encoding"
 )
@@ -58,13 +57,14 @@ func (self *Mod) insert(item interface{}, ignore bool) (id int64, err error) {
 	}
 	// remove last comma
 	cols = cols[:len(cols)-1]
+	qmarks = qmarks[:len(qmarks)-1]
 
 	if ignore {
-		sql = fmt.Sprintf("INSERT OR IGNORE INTO %s(%s) VALUES(%s)",
-			self.table, cols, qmarks)
+		sql = "INSERT OR IGNORE INTO " +
+			self.table + "(" + cols + ") VALUES(" + qmarks + ")"
 	} else {
-		sql = fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s)",
-			self.table, cols, qmarks)
+		sql = "INSERT INTO " + self.table +
+			"(" + cols + ") VALUES(" + qmarks + ")"
 	}
 
 	res, err := self.db.Execute(sql, vals...)

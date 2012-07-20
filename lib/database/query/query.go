@@ -17,7 +17,6 @@
 package query
 
 import (
-	"fmt"
 	. "musicrawler/lib/database"
 	"strings"
 )
@@ -97,10 +96,10 @@ func (self *Query) toSQL() *sqlQuery {
 	}
 
 	for _, v := range self.join {
-		join += fmt.Sprintf(" JOIN %s ON %s.%s = %s.%s",
-			v.OnTable,
-			v.OwnTable, v.OwnFieldName,
-			v.OnTable, v.OnFieldName)
+		join += " JOIN " + v.OnTable + " ON " +
+			v.OwnTable + "." + v.OwnFieldName + " = " +
+			v.OnTable + "." + v.OnFieldName
+
 	}
 
 	if len(self.where) > 0 || len(self.like) > 0 {
