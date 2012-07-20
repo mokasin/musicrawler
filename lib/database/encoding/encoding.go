@@ -23,6 +23,8 @@ import (
 	"musicrawler/lib/database"
 	"reflect"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var ErrWrongType error = errors.New("Wrong type.")
@@ -34,6 +36,12 @@ type Entry struct {
 }
 
 type Entries []Entry
+
+// isExported reports whether this is an exported - upper case - name.
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
+}
 
 // Encode eats a pointer to a struct src and converts all exported fields into a
 // map
@@ -48,8 +56,7 @@ func Encode(src interface{}) (ent Entries, err error) {
 	t := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
-		// is the field exported?
-		if t.Field(i).PkgPath != "" {
+		if !isExported(t.Field(i).Name) {
 			continue
 		}
 
@@ -79,17 +86,17 @@ func Decode(src database.Result, dest interface{}) error {
 	t := v.Type()
 
 	for i := 0; i < t.NumField(); i++ {
-		// is the field exported?
-		if t.Field(i).PkgPath != "" {
+		if !isExported(t.Field(i).Name) {
 			continue
 		}
 
-		if t.Field(i).Tag.Get("column") == "" {
+		column := t.Field(i).Tag.Get("column")
+		if column == "" {
 			continue
 		}
 
 		// read out struct's tag to get the column name
-		val, ok := src[t.Field(i).Tag.Get("column")]
+		val, ok := src[column]
 		if !ok {
 			return fmt.Errorf("No column named '%s' found in query result. "+
 				"Struct field '%s.%s %v' cannot be written.\n"+
