@@ -44,8 +44,7 @@ type albumLink struct {
 }
 
 type artistsSelectTmpl struct {
-	Breadcrumb []activelink
-	Albums     []albumLink
+	Albums []albumLink
 }
 
 // Controller to serve artists
@@ -215,8 +214,6 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		//TODO don't hard code pathes
 		td.Albums[i].Path = fmt.Sprintf("/%s/%d", "album", albums[i].Id)
 	}
-
-	td.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
 	self.RenderPage(

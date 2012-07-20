@@ -1,5 +1,7 @@
 {{define "content"}}
 
+<a class="btn" href="javascript:history.back()">Back to albums</a>
+
 <link href="/assets/widgets/360-player/360player.css" rel="stylesheet" />
 
 <div class="table-album">

@@ -16,11 +16,6 @@
 
 package web
 
-import (
-	"musicrawler/lib/web/router"
-	"strings"
-)
-
 type link struct {
 	Label string
 	Path  string
@@ -29,17 +24,4 @@ type link struct {
 type activelink struct {
 	link
 	Active bool
-}
-
-func Breadcrump(path string) (r []activelink) {
-	tokens := router.ParseURL(path)
-
-	r = make([]activelink, len(tokens))
-	for i := 0; i < len(tokens); i++ {
-		r[i].Label = tokens[i]
-		r[i].Path = "/" + strings.Join(tokens[:i+1], "/")
-	}
-	r[len(r)-1].Active = true
-
-	return r
 }

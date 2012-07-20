@@ -1,19 +1,5 @@
 {{define "content"}}
-<ul class="breadcrumb">
-	{{range .Breadcrumb}}
-		{{if .Active}}
-			<li class="active">
-				<a href="{{.Path}}">{{.Label}}</a>
-				<span class="divider">/</span>
-			</li>
-		{{else}}
-			<li>
-				<a href="{{.Path}}">{{.Label}}</a>
-				<span class="divider">/</span>
-			</li>
-		{{end}}
-	{{end}}
-</ul>
+<a class="btn" href="javascript:history.back()">Back to artists</a>
 
 <div class="album-table">
 	<table class="table table-condensed table-striped">
