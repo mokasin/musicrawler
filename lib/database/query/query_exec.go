@@ -68,27 +68,50 @@ func (self *Query) Count() (int, error) {
 	return v, nil
 }
 
+const (
+	SQLLetterSet = "'A','B','C','D','E','F','G','H','I','J','K','L','M','N'," +
+		"'O','P','Q','R','S','T','U','V','W','X','Y','Z'"
+)
+
 // Letters returns string of first letters in the column named column.
-func (self *Query) Letters(column string) (string, error) {
+func (self *Query) Letters(column string) (alpha, nonalpha string, err error) {
 	sqlQuery := self.toSQL()
 
 	sql := "SELECT DISTINCT SUBSTR(UPPER(" + column + "),1,1) FROM (" +
-		sqlQuery.SQL + ")"
+		sqlQuery.SQL + ") WHERE SUBSTR(UPPER(" + column +
+		"),1,1) IN (" + SQLLetterSet + ")"
 
 	res, err := self.db.Query(sql, sqlQuery.Args...)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	var s string
 	for i := 0; i < len(res); i++ {
 		v, ok := res[i][fmt.Sprintf("SUBSTR(UPPER(%s),1,1)", column)].(string)
 		if !ok {
-			return "", fmt.Errorf("Result is no string.")
+			return "", "", fmt.Errorf("Result is no string.")
 		}
 
-		s += v
+		alpha += v
 	}
 
-	return s, nil
+	sql = "SELECT DISTINCT SUBSTR(UPPER(" + column + "),1,1) FROM (" +
+		sqlQuery.SQL + ") WHERE SUBSTR(UPPER(" + column +
+		"),1,1) NOT IN (" + SQLLetterSet + ")"
+
+	res, err = self.db.Query(sql, sqlQuery.Args...)
+	if err != nil {
+		return "", "", err
+	}
+
+	for i := 0; i < len(res); i++ {
+		v, ok := res[i][fmt.Sprintf("SUBSTR(UPPER(%s),1,1)", column)].(string)
+		if !ok {
+			return "", "", fmt.Errorf("Result is no string.")
+		}
+
+		nonalpha += v
+	}
+
+	return alpha, nonalpha, nil
 }

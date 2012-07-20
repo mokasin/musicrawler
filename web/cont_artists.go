@@ -71,18 +71,28 @@ func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 	// get first letter of artists
 	q := query.New(self.Db, "artist").Order("name")
 
-	letters, err := q.Letters("name")
+	al, nal, err := q.Letters("name")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	if len(al) == 0 && len(nal) == 0 {
+		http.Error(w, "No entries in database", http.StatusInternalServerError)
+		return
+	}
+
+	// use zero to represent non alphabetic letters
+	if len(nal) != 0 {
+		al = "0" + al
+	}
+
 	page := r.URL.Query().Get("page")
 
 	// just go to the first page by default
 	if page == "" {
-		self.byFirstLetter(w, r, rune(letters[0]))
+		self.byFirstLetter(w, r, al, rune(al[0]))
 		return
 	}
 
@@ -92,7 +102,79 @@ func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	self.byFirstLetter(w, r, rune(page[0]))
+	self.byFirstLetter(w, r, al, rune(page[0]))
+}
+
+func (self *ControllerArtists) generatePager(al, active string) []activelink {
+	// creating pager
+	pager := make([]activelink, len(al))
+
+	for i := 0; i < len(al); i++ {
+		if string(al[i]) == active {
+			pager[i].Active = true
+		}
+		pager[i].Label = string(al[i])
+		v := url.Values{}
+		v.Add("page", string(al[i]))
+		pager[i].Path = "/" + self.Route + "?" + v.Encode()
+	}
+
+	return pager
+}
+
+var alphabet = []interface{}{
+	"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+	"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+}
+
+// firstLetter shows a list of all artists whom's name starting with letter.
+func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letters string, page rune) {
+	var err error
+	if err := self.Db.BeginTransaction(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer self.Db.EndTransaction()
+
+	if !strings.ContainsRune(letters, page) {
+		http.NotFound(w, r)
+		return
+	}
+
+	// populating data
+	var artists []model.Artist
+
+	if string(page) == "0" {
+		err = query.New(self.Db, "artist").WhereIn(
+			"SUBSTR(UPPER(name),1,1) NOT", alphabet...,
+		).Exec(&artists)
+	} else {
+		err = query.New(self.Db, "artist").Like("name", string(page)+"%").Exec(&artists)
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var td artistsIndexTmpl
+	td.Artists = make([]artistLink, len(artists))
+
+	// prepare structure for template
+	for i := 0; i < len(artists); i++ {
+		td.Artists[i].Artist = artists[i]
+		td.Artists[i].Path = fmt.Sprintf("/%s/%d", self.Route, artists[i].Id)
+	}
+
+	td.Pager = self.generatePager(letters, string(page))
+
+	// render the website
+	self.RenderPage(
+		w,
+		"index",
+		&controller.Page{Title: "Artists starting with" + string(page)},
+		td,
+	)
 }
 
 func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, selector string) {
@@ -109,7 +191,7 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	defer self.Db.EndTransaction()
 
 	var artist model.Artist
-	err = query.NewQuery(self.Db, "artist").Find(id).Exec(&artist)
+	err = query.New(self.Db, "artist").Find(id).Exec(&artist)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -141,74 +223,6 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		w,
 		"select",
 		&controller.Page{Title: artist.Name},
-		td,
-	)
-}
-
-func (self *ControllerArtists) generatePager(letters, active string) []activelink {
-	// creating pager
-	pager := make([]activelink, len(letters))
-
-	for i := 0; i < len(letters); i++ {
-		if string(letters[i]) == active {
-			pager[i].Active = true
-		}
-		pager[i].Label = string(letters[i])
-		v := url.Values{}
-		v.Add("page", string(letters[i]))
-		pager[i].Path = "/" + self.Route + "?" + v.Encode()
-	}
-
-	return pager
-}
-
-// firstLetter shows a list of all artists whom's name starting with letter.
-func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
-	if err := self.Db.BeginTransaction(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer self.Db.EndTransaction()
-
-	// get first letter of artists
-	q := query.NewQuery(self.Db, "artist").Order("name")
-	letters, err := q.Letters("name")
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if !strings.ContainsRune(letters, letter) {
-		http.NotFound(w, r)
-		return
-	}
-
-	// populating data
-	var artists []model.Artist
-
-	err = query.NewQuery(self.Db, "artist").Like("name", string(letter)+"%").Exec(&artists)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var td artistsIndexTmpl
-	td.Artists = make([]artistLink, len(artists))
-
-	// prepare structure for template
-	for i := 0; i < len(artists); i++ {
-		td.Artists[i].Artist = artists[i]
-		td.Artists[i].Path = fmt.Sprintf("/%s/%d", self.Route, artists[i].Id)
-	}
-
-	td.Pager = self.generatePager(letters, string(letter))
-
-	// render the website
-	self.RenderPage(
-		w,
-		"index",
-		&controller.Page{Title: "Artists starting with" + string(letter)},
 		td,
 	)
 }

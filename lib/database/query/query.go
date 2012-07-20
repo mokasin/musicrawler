@@ -30,6 +30,11 @@ type where struct {
 	Value        interface{}
 }
 
+type wherein struct {
+	FieldName string
+	Values    []interface{}
+}
+
 type like struct {
 	Constriction string
 	Value        interface{}
@@ -57,13 +62,14 @@ type Query struct {
 	table string
 	db    *Database
 
-	cols   []string
-	join   []join
-	where  []where
-	like   []like
-	order  []order
-	limit  uint
-	offset uint
+	cols    []string
+	join    []join
+	where   []where
+	wherein []wherein
+	like    []like
+	order   []order
+	limit   uint
+	offset  uint
 
 	err error
 }
@@ -81,9 +87,10 @@ type sqlQuery struct {
 
 // toSQL encodes the query into an SQL-Query.
 func (self *Query) toSQL() *sqlQuery {
-	var cols, join, where, order, limit, offset string
+	var cols, join, where, wherein, order, limit, offset string
 	sql := &sqlQuery{}
 
+	// set columns
 	if len(self.cols) == 0 {
 		cols = self.table + ".*"
 	} else {
@@ -95,6 +102,7 @@ func (self *Query) toSQL() *sqlQuery {
 		}
 	}
 
+	// add join statement
 	for _, v := range self.join {
 		join += " JOIN " + v.OnTable + " ON " +
 			v.OwnTable + "." + v.OwnFieldName + " = " +
@@ -102,10 +110,12 @@ func (self *Query) toSQL() *sqlQuery {
 
 	}
 
-	if len(self.where) > 0 || len(self.like) > 0 {
+	// add constriction if available
+	if len(self.where) > 0 || len(self.like) > 0 || len(self.wherein) > 0 {
 		where = " WHERE"
 	}
 
+	// add boolean constrictions
 	for i, v := range self.where {
 		where += " " + v.Constriction + " ?"
 
@@ -116,10 +126,32 @@ func (self *Query) toSQL() *sqlQuery {
 		sql.Args = append(sql.Args, v.Value)
 	}
 
-	if len(self.where) > 0 && len(self.like) > 0 {
+	if len(self.where) > 0 && len(self.wherein) > 0 {
 		where += " AND"
 	}
 
+	// add in set constriction
+	for i, v := range self.wherein {
+		wherein += " " + v.FieldName + " IN ("
+		for i := 0; i < len(v.Values); i++ {
+			wherein += "?,"
+		}
+		// trim the last comma
+		wherein = wherein[:len(wherein)-1]
+		wherein += ")"
+
+		if i < len(self.where)-1 {
+			wherein += " AND"
+		}
+
+		sql.Args = append(sql.Args, v.Values...)
+	}
+
+	if len(self.wherein) > 0 && len(self.like) > 0 {
+		where += " AND"
+	}
+
+	// add wildcard constriction
 	for i, v := range self.like {
 		where += " " + v.Constriction + " LIKE ?"
 
@@ -130,6 +162,7 @@ func (self *Query) toSQL() *sqlQuery {
 		sql.Args = append(sql.Args, v.Value)
 	}
 
+	// add ordering statement
 	if len(self.order) > 0 {
 		order = " ORDER BY "
 	}
@@ -141,18 +174,21 @@ func (self *Query) toSQL() *sqlQuery {
 		}
 	}
 
+	// add limit...
 	if self.limit != 0 {
 		limit = " LIMIT ?"
 		sql.Args = append(sql.Args, self.limit)
 	}
 
+	// ...and offset
 	if self.offset != 0 {
 		offset = " OFFSET ?"
 		sql.Args = append(sql.Args, self.offset)
 	}
 
+	// put everything together
 	sql.SQL = "SELECT " + cols + " FROM " +
-		self.table + join + where + order + limit + offset
+		self.table + join + where + wherein + order + limit + offset
 
 	return sql
 }
@@ -208,6 +244,22 @@ func (self *Query) Where(constriction string, value interface{}) *Query {
 // Find is just an alias for matching the ID.
 func (self *Query) Find(ID int) *Query {
 	return self.Where("ID =", ID)
+}
+
+// WhereIn returns a derivated Query with an applied constriction. The
+// constriction must be a string of the form
+// 
+// 		<fieldName>
+//
+// Multiple calls are concatenation with an AND. The fieldName is a set of
+// values.
+// Example:
+//
+// 		WhereIn("ID", 5, 7, 3)
+//
+func (self *Query) WhereIn(fieldname string, values ...interface{}) *Query {
+	self.wherein = append(self.wherein, wherein{fieldname, values})
+	return self
 }
 
 // Like returns a derivated Query with an applied constriction. The
