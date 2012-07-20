@@ -14,7 +14,7 @@
  *  along with c program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package web
+package router
 
 import (
 	"net/http"
@@ -54,7 +54,7 @@ func ParseURL(path string) []string {
 }
 
 // routeHandler calls appropriate methods of controller depending on the path.
-func (self *Router) routeHandler(w http.ResponseWriter, req *http.Request) {
+func (self *Router) RouteHandler(w http.ResponseWriter, req *http.Request) {
 	var resource, selector string
 
 	path := strings.Trim(req.URL.Path, "/")
@@ -108,7 +108,7 @@ func (self *Router) AddRoute(resource string, controller interface{}) {
 	http.HandleFunc(
 		"/"+resource,
 		func(w http.ResponseWriter, req *http.Request) {
-			self.routeHandler(w, req)
+			self.RouteHandler(w, req)
 		},
 	)
 }

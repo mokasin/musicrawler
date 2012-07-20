@@ -14,12 +14,16 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package model
 
-import "fmt"
+import (
+	"fmt"
+	. "musicrawler/lib/database"
+	. "musicrawler/lib/database/query"
+)
 
 func CreateTrackTable(db *Database) error {
-	return db.Execute(`CREATE TABLE Track
+	_, err := db.Execute(`CREATE TABLE Track
 	( ID          INTEGER NOT NULL PRIMARY KEY,
 	  path        TEXT NOT NULL,
 	  title       TEXT,
@@ -31,46 +35,41 @@ func CreateTrackTable(db *Database) error {
 	  filemtime	  INTEGER,
 	  dbmtime     INTEGER
     );`)
+
+	return err
 }
 
 // Define scheme of track entry.
-type Track struct {
-	Id          int    `column:"ID" set:"0"`
+type RawTrack struct {
+	Id          int64  `column:"ID" set:"0"`
 	Path        string `column:"path"`
 	Title       string `column:"title"`
 	Tracknumber int    `column:"tracknumber"`
 	Year        int    `column:"year"`
 	Length      int    `column:"length"`
 	Genre       string `column:"genre"`
-	AlbumID     int    `column:"album_id"`
-	Filemtime   int    `column:"filemtime"`
-	DBMtime     int    `column:"dbmtime"`
+	AlbumID     int64  `column:"album_id"`
+	Filemtime   int64  `column:"filemtime"`
+	DBMtime     int64  `column:"dbmtime"`
 }
 
-type JoinedTrack struct {
-	Id          int    `column:"track:ID" set:"0"`
+type Track struct {
+	Id          int64  `column:"track:ID" set:"0"`
 	Path        string `column:"track:path"`
 	Title       string `column:"track:title"`
 	Tracknumber int    `column:"track:tracknumber"`
 	Year        int    `column:"track:year"`
 	Length      int    `column:"track:length"`
 	Genre       string `column:"track:genre"`
-	Filemtime   int    `column:"track:filemtime"`
-	DBMtime     int    `column:"track:dbmtime"`
 	Artist      string `column:"artist:name"`
 	Album       string `column:"album:name"`
 }
 
-func (self *Track) AlbumQuery(db *Database) *Query {
+func (self *RawTrack) AlbumQuery(db *Database) *Query {
 	return NewQuery(db, "album").Where("ID =", self.AlbumID)
 }
 
 // LengthString returns a nicely formatted string of the track's length.
 func (self *Track) LengthString() string {
-	return fmt.Sprintf("%d:%02d", self.Length/60, self.Length%60)
-}
-
-// LengthString returns a nicely formatted string of the track's length.
-func (self *JoinedTrack) LengthString() string {
 	return fmt.Sprintf("%d:%02d", self.Length/60, self.Length%60)
 }

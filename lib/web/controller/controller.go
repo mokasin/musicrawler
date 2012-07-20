@@ -14,11 +14,11 @@
  *  along with c program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package web
+package controller
 
 import (
 	"html/template"
-	"musicrawler/index"
+	"musicrawler/lib/database"
 	"net/http"
 )
 
@@ -28,16 +28,19 @@ type Page struct {
 }
 
 type Controller struct {
-	db        *index.Database
+	Db    *database.Database
+	Route string
+
 	templates map[string]*template.Template
-	route     string
+	filepath  string
 }
 
 // Constructor. Needs templates to register.
-func NewController(db *index.Database, route string) *Controller {
+func NewController(db *database.Database, route, filepath string) *Controller {
 	return &Controller{
-		db:        db,
-		route:     route,
+		Db:        db,
+		Route:     route,
+		filepath:  filepath,
 		templates: make(map[string]*template.Template),
 	}
 }
@@ -46,14 +49,14 @@ func NewController(db *index.Database, route string) *Controller {
 func (self *Controller) AddTemplate(name string, templates ...string) {
 	if len(templates) > 0 {
 		for i := 0; i < len(templates); i++ {
-			templates[i] = websitePath + "templates/" + templates[i] + ".tpl"
+			templates[i] = self.filepath + "templates/" + templates[i] + ".tpl"
 		}
 		self.templates[name] = template.Must(template.ParseFiles(templates...))
 	}
 }
 
 // Write template with name tmpl to w.
-func (self *Controller) renderPage(w http.ResponseWriter, tmpl string, p *Page, data interface{}) {
+func (self *Controller) RenderPage(w http.ResponseWriter, tmpl string, p *Page, data interface{}) {
 	m := map[string]interface{}{"page": p, "content": data}
 
 	err := self.templates[tmpl].Execute(w, m)
