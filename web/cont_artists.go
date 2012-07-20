@@ -172,7 +172,7 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 	self.RenderPage(
 		w,
 		"index",
-		&controller.Page{Title: "Artists starting with" + string(page)},
+		&controller.Page{Title: "Artists starting with " + string(page)},
 		td,
 	)
 }
