@@ -1,6 +1,7 @@
 {{define "content"}}
-
-<a class="btn" href="javascript:history.back()">Back to albums</a>
+<a class="btn" href="javascript:history.back()">
+	<i class="icon-chevron-left"></i> Back to album
+</a>
 
 <link href="/assets/widgets/360-player/360player.css" rel="stylesheet" />
 

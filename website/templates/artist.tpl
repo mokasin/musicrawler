@@ -1,5 +1,7 @@
 {{define "content"}}
-<a class="btn" href="javascript:history.back()">Back to artists</a>
+<a class="btn" href="javascript:history.back()">
+	<i class="icon-chevron-left"></i> Back to artists
+</a>
 
 <div class="album-table">
 	<table class="table table-condensed table-striped">
