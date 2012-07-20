@@ -95,7 +95,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 		trackAction = TRACK_NOUPDATE
 
 		// check if mtime has changed and decide what to do
-		err := query.NewQuery(db, "track").Where("path =", ti.Path()).Exec(tm)
+		err := query.New(db, "track").Where("path =", ti.Path()).Exec(tm)
 		switch {
 		case err == nil: // track is in database
 			// check if track has changed since the last time

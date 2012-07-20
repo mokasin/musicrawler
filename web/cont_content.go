@@ -58,7 +58,7 @@ func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, se
 
 	var track trackPathId
 
-	err = query.NewQuery(self.Db, "track").Find(id).Exec(&track)
+	err = query.New(self.Db, "track").Find(id).Exec(&track)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

@@ -68,8 +68,8 @@ type Query struct {
 	err error
 }
 
-// NewQuery creates a new Query for a specifig table.
-func NewQuery(db *Database, table string) *Query {
+// New creates a new Query for a specifig table.
+func New(db *Database, table string) *Query {
 	return &Query{db: db, table: table}
 }
 

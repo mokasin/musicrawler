@@ -69,7 +69,7 @@ func NewControllerArtists(db *database.Database, route, filepath string) *Contro
 func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	// get first letter of artists
-	q := query.NewQuery(self.Db, "artist").Order("name")
+	q := query.New(self.Db, "artist").Order("name")
 
 	letters, err := q.Letters("name")
 

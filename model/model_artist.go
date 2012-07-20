@@ -18,7 +18,7 @@ package model
 
 import (
 	. "musicrawler/lib/database"
-	. "musicrawler/lib/database/query"
+	"musicrawler/lib/database/query"
 )
 
 func CreateArtistTable(db *Database) error {
@@ -37,6 +37,6 @@ type Artist struct {
 }
 
 // Albums returns a prepared Query to query the albums of the artist.
-func (self *Artist) AlbumsQuery(db *Database) *Query {
-	return NewQuery(db, "album").Where("artist_id =", self.Id)
+func (self *Artist) AlbumsQuery(db *Database) *query.Query {
+	return query.New(db, "album").Where("artist_id =", self.Id)
 }

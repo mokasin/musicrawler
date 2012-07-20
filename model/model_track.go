@@ -19,7 +19,7 @@ package model
 import (
 	"fmt"
 	. "musicrawler/lib/database"
-	. "musicrawler/lib/database/query"
+	"musicrawler/lib/database/query"
 )
 
 func CreateTrackTable(db *Database) error {
@@ -65,8 +65,8 @@ type Track struct {
 	Album       string `column:"album:name"`
 }
 
-func (self *RawTrack) AlbumQuery(db *Database) *Query {
-	return NewQuery(db, "album").Where("ID =", self.AlbumID)
+func (self *RawTrack) AlbumQuery(db *Database) *query.Query {
+	return query.New(db, "album").Where("ID =", self.AlbumID)
 }
 
 // LengthString returns a nicely formatted string of the track's length.

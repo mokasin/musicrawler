@@ -72,7 +72,7 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 
 	var album model.Album
 
-	err = query.NewQuery(self.Db, "album").Find(id).Exec(&album)
+	err = query.New(self.Db, "album").Find(id).Exec(&album)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
