@@ -28,6 +28,7 @@ import (
 var (
 	ErrNoOpenTransaction   = errors.New("No open transaction.")
 	ErrExistingTransaction = errors.New("There is an existing transaction.")
+	ErrDatabaseExists      = errors.New("Can't create new database. A database already exists.")
 )
 
 type CreateTableFunc func(db *Database) error
@@ -83,8 +84,7 @@ func (self *Database) Close() {
 // Creates the basic database structure.
 func (self *Database) CreateDatabase() error {
 	if !self.newDB {
-		return fmt.Errorf(
-			"Can't create new database. A database already exists.")
+		return ErrDatabaseExists
 	}
 
 	if len(self.fctables) == 0 {

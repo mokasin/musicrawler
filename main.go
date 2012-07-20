@@ -119,7 +119,7 @@ func main() {
 	mydb.Register(model.CreateTrackTable)
 
 	err = mydb.CreateDatabase()
-	if err != nil {
+	if err != nil && err != database.ErrDatabaseExists {
 		fmt.Println(err)
 	}
 
