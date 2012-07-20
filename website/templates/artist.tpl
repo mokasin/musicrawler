@@ -3,6 +3,8 @@
 	<i class="icon-chevron-left"></i> Back to artists
 </a>
 
+<h1 class="artist-title">{{.Artist.Name}}</h1>
+
 <div class="album-table">
 	<table class="table table-condensed table-striped">
 		<thead>

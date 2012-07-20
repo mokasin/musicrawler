@@ -5,6 +5,8 @@
 
 <link href="/assets/widgets/360-player/360player.css" rel="stylesheet" />
 
+<h1 class="album-title">{{.Album.Name}}</h1>
+
 <div class="table-album">
 	<table class="table table-condensed table-striped">
 		<thead>

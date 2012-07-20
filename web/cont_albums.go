@@ -33,6 +33,7 @@ type trackLink struct {
 }
 
 type albumsSelectTmpl struct {
+	Album  *model.Album
 	Tracks []trackLink
 }
 
@@ -91,7 +92,7 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 		return
 	}
 
-	var td albumsSelectTmpl
+	var td = albumsSelectTmpl{Album: &album}
 	td.Tracks = make([]trackLink, len(tracks))
 
 	// prepare structure for template
