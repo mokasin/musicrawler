@@ -18,7 +18,10 @@ package web
 
 import (
 	"fmt"
-	"musicrawler/index"
+	"musicrawler/lib/database"
+	"musicrawler/lib/database/query"
+	"musicrawler/lib/web/controller"
+	"musicrawler/model"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,7 +29,7 @@ import (
 )
 
 type artistLink struct {
-	Artist index.Artist
+	Artist model.Artist
 	Path   string
 }
 
@@ -36,7 +39,7 @@ type artistsIndexTmpl struct {
 }
 
 type albumLink struct {
-	Album index.Album
+	Album model.Album
 	Path  string
 }
 
@@ -47,13 +50,13 @@ type artistsSelectTmpl struct {
 
 // Controller to serve artists
 type ControllerArtists struct {
-	Controller
+	controller.Controller
 }
 
 // Constructor.
-func NewControllerArtists(db *index.Database, route string) *ControllerArtists {
+func NewControllerArtists(db *database.Database, route, filepath string) *ControllerArtists {
 	c := &ControllerArtists{
-		Controller: *NewController(db, route),
+		controller.Controller: *controller.NewController(db, route, filepath),
 	}
 
 	c.AddTemplate("index", "index", "artists")
@@ -66,7 +69,7 @@ func NewControllerArtists(db *index.Database, route string) *ControllerArtists {
 func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	// get first letter of artists
-	q := index.NewQuery(self.db, "artist").Order("name")
+	q := query.NewQuery(self.Db, "artist").Order("name")
 
 	letters, err := q.Letters("name")
 
@@ -99,26 +102,23 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	if err := self.db.BeginTransaction(); err != nil {
+	if err := self.Db.BeginTransaction(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer self.db.EndTransaction()
+	defer self.Db.EndTransaction()
 
-	var artist index.Artist
-	q := index.NewQuery(self.db, "artist").Find(id)
-	err = q.Exec(&artist)
+	var artist model.Artist
+	err = query.NewQuery(self.Db, "artist").Find(id).Exec(&artist)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	q = artist.AlbumsQuery(self.db).Order("name")
+	var albums []model.Album
 
-	var albums []index.Album
-
-	err = q.Exec(&albums)
+	err = artist.AlbumsQuery(self.Db).Order("name").Exec(&albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -137,10 +137,10 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	td.Breadcrumb = Breadcrump(r.URL.Path)
 
 	// render the website
-	self.renderPage(
+	self.RenderPage(
 		w,
 		"select",
-		&Page{Title: artist.Name},
+		&controller.Page{Title: artist.Name},
 		td,
 	)
 }
@@ -156,7 +156,7 @@ func (self *ControllerArtists) generatePager(letters, active string) []activelin
 		pager[i].Label = string(letters[i])
 		v := url.Values{}
 		v.Add("page", string(letters[i]))
-		pager[i].Path = "/" + self.route + "?" + v.Encode()
+		pager[i].Path = "/" + self.Route + "?" + v.Encode()
 	}
 
 	return pager
@@ -164,14 +164,14 @@ func (self *ControllerArtists) generatePager(letters, active string) []activelin
 
 // firstLetter shows a list of all artists whom's name starting with letter.
 func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letter rune) {
-	if err := self.db.BeginTransaction(); err != nil {
+	if err := self.Db.BeginTransaction(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer self.db.EndTransaction()
+	defer self.Db.EndTransaction()
 
 	// get first letter of artists
-	q := index.NewQuery(self.db, "artist").Order("name")
+	q := query.NewQuery(self.Db, "artist").Order("name")
 	letters, err := q.Letters("name")
 
 	if err != nil {
@@ -185,11 +185,9 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 	}
 
 	// populating data
-	var artists []index.Artist
+	var artists []model.Artist
 
-	q = index.NewQuery(self.db, "artist").Like("name", string(letter)+"%")
-
-	err = q.Exec(&artists)
+	err = query.NewQuery(self.Db, "artist").Like("name", string(letter)+"%").Exec(&artists)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -201,16 +199,16 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 	// prepare structure for template
 	for i := 0; i < len(artists); i++ {
 		td.Artists[i].Artist = artists[i]
-		td.Artists[i].Path = fmt.Sprintf("/%s/%d", self.route, artists[i].Id)
+		td.Artists[i].Path = fmt.Sprintf("/%s/%d", self.Route, artists[i].Id)
 	}
 
 	td.Pager = self.generatePager(letters, string(letter))
 
 	// render the website
-	self.renderPage(
+	self.RenderPage(
 		w,
 		"index",
-		&Page{Title: "Artists starting with" + string(letter)},
+		&controller.Page{Title: "Artists starting with" + string(letter)},
 		td,
 	)
 }

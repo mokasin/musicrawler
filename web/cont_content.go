@@ -18,7 +18,9 @@ package web
 
 import (
 	"fmt"
-	"musicrawler/index"
+	"musicrawler/lib/database"
+	"musicrawler/lib/database/query"
+	"musicrawler/lib/web/controller"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -26,11 +28,18 @@ import (
 )
 
 type ControllerContent struct {
-	Controller
+	controller.Controller
 }
 
-func NewControllerContent(db *index.Database, route string) *ControllerContent {
-	return &ControllerContent{Controller: *NewController(db, route)}
+type trackPathId struct {
+	Id   int    `column:"ID"`
+	Path string `column:"path"`
+}
+
+func NewControllerContent(db *database.Database, route, filepath string) *ControllerContent {
+	return &ControllerContent{
+		controller.Controller: *controller.NewController(db, route, filepath),
+	}
 }
 
 // Serving a audio file that has an entry in the database.
@@ -47,9 +56,9 @@ func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	var track index.Track
+	var track trackPathId
 
-	err = index.NewQuery(self.db, "track").Find(id).Exec(&track)
+	err = query.NewQuery(self.Db, "track").Find(id).Exec(&track)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

@@ -14,23 +14,31 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package encoding
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	"musicrawler/lib/database"
 	"reflect"
 	"strings"
 )
 
 var ErrWrongType error = errors.New("Wrong type.")
 
-type Result map[string]interface{}
+// 
+type Entry struct {
+	Column string
+	Value  interface{}
+}
+
+type Entries []Entry
 
 // Encode eats a pointer to a struct src and converts all exported fields into a
 // map
 // 		"field name" => <values>
-func (self *Query) Encode(src interface{}) (Result, error) {
+func Encode(src interface{}) (ent Entries, err error) {
 	v := reflect.ValueOf(src)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return nil, fmt.Errorf("src must be a pointer to struct.")
@@ -39,29 +47,29 @@ func (self *Query) Encode(src interface{}) (Result, error) {
 	v = v.Elem()
 	t := v.Type()
 
-	res := make(map[string]interface{})
-
 	for i := 0; i < v.NumField(); i++ {
 		// is the field exported?
 		if t.Field(i).PkgPath != "" {
 			continue
 		}
 
+		col := t.Field(i).Tag.Get("column")
+
 		// check struct's tag if value should be set (!= "0")
 		// and just use fields with tag
-		if t.Field(i).Tag.Get("set") != "0" &&
-			t.Field(i).Tag.Get("column") != "" {
-			res[t.Field(i).Tag.Get("column")] = v.Field(i).Interface()
+		if t.Field(i).Tag.Get("set") != "0" && col != "" {
+			entry := Entry{Column: col, Value: v.Field(i).Interface()}
+			ent = append(ent, entry)
 		}
 	}
 
-	return res, nil
+	return ent, nil
 }
 
 // Decode reads a map of type Result and a structure like
 // 		"field name" => <value>
 // and spits out a struct to dest.
-func (self *Query) Decode(src Result, dest interface{}) error {
+func Decode(src database.Result, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("dest must be a pointer to struct.")
@@ -94,7 +102,7 @@ func (self *Query) Decode(src Result, dest interface{}) error {
 
 		// do type assertion
 		switch v.Field(i).Kind() {
-		case reflect.Int:
+		case reflect.Int, reflect.Int64:
 			val, ok := val.(int64)
 			if !ok {
 				return fmt.Errorf("Cannot do assertion to 'int' on field "+
@@ -127,7 +135,7 @@ func (self *Query) Decode(src Result, dest interface{}) error {
 // DecodeAll decodes a slice of results. If there is only one result, dest can
 // be a pointer to a struct. If there are more result, dest must be a pointer to
 // a slice of structs.
-func (self *Query) DecodeAll(src []Result, dest interface{}) error {
+func DecodeAll(src []database.Result, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Ptr ||
 		(v.Elem().Kind() != reflect.Slice &&
@@ -137,11 +145,15 @@ func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 
 	// if just one struct is given, it is unnecessary to return a slice
 	if v.Elem().Kind() == reflect.Struct {
-		if len(src) != 1 {
+		switch len(src) {
+		case 0:
+			return sql.ErrNoRows
+		case 1:
+			return Decode(src[0], v.Interface())
+		default:
 			return fmt.Errorf("Can't write data from database to single " +
 				"struct. Got multiple results.")
 		}
-		return self.Decode(src[0], v.Interface())
 	}
 
 	// Making slice big enough
@@ -150,7 +162,7 @@ func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 
 	// Feed Decode method with it
 	for i := 0; i < v.Elem().Len(); i++ {
-		err := self.Decode(src[i], v.Elem().Index(i).Addr().Interface())
+		err := Decode(src[i], v.Elem().Index(i).Addr().Interface())
 		if err != nil {
 			return err
 		}
@@ -167,7 +179,7 @@ func (self *Query) DecodeAll(src []Result, dest interface{}) error {
 // 		column:"table:columname"
 //
 // 'table' is optional.
-func (self *Query) ExtractColumns(str interface{}) (columns []string, err error) {
+func ExtractColumns(str interface{}) (columns []string, err error) {
 	v := reflect.ValueOf(str)
 
 	if v.Kind() != reflect.Ptr ||

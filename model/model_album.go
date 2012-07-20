@@ -14,10 +14,15 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package model
+
+import (
+	. "musicrawler/lib/database"
+	. "musicrawler/lib/database/query"
+)
 
 func CreateAlbumTable(db *Database) error {
-	err := db.Execute(`CREATE TABLE Album
+	_, err := db.Execute(`CREATE TABLE Album
 	(  ID   INTEGER NOT NULL PRIMARY KEY,
 	   name TEXT,
 	   artist_id INTEGER REFERENCES Artist(ID) ON DELETE SET NULL
@@ -28,15 +33,16 @@ func CreateAlbumTable(db *Database) error {
 	}
 
 	// create tuple index to prevent double entries
-	return db.Execute(
+	_, err = db.Execute(
 		"CREATE UNIQUE INDEX 'album_artist' ON Album (name, artist_id);")
+	return err
 }
 
 // Define scheme of album entry.
 type Album struct {
-	Id       int    `column:"ID" set:"0"`
+	Id       int64  `column:"ID" set:"0"`
 	Name     string `column:"name"`
-	ArtistID int    `column:"artist_id"`
+	ArtistID int64  `column:"artist_id"`
 }
 
 func (self *Album) ArtistQuery(db *Database) *Query {

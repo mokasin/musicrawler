@@ -14,18 +14,25 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package index
+package model
+
+import (
+	. "musicrawler/lib/database"
+	. "musicrawler/lib/database/query"
+)
 
 func CreateArtistTable(db *Database) error {
-	return db.Execute(`CREATE TABLE Artist
+	_, err := db.Execute(`CREATE TABLE Artist
 	( ID   INTEGER  NOT NULL PRIMARY KEY,
 	  name TEXT     UNIQUE
 	);`)
+
+	return err
 }
 
 // Define scheme of artist entry.
 type Artist struct {
-	Id   int    `column:"ID" set:"0"`
+	Id   int64  `column:"ID" set:"0"`
 	Name string `column:"name"`
 }
 
