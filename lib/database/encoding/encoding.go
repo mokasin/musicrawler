@@ -109,26 +109,16 @@ func Decode(src database.Result, dest interface{}) error {
 
 		// do type assertion
 		switch v.Field(i).Kind() {
-		case reflect.Int:
-			val, ok := val.(int)
-			if !ok {
-				return fmt.Errorf("Cannot do assertion to 'int' on field "+
-					"'%s.%s %v'.",
-					t.Name(), t.Field(i).Name, v.Field(i).Kind())
-			}
-
-			v.Field(i).SetInt(int64(val))
-
-		case reflect.Int64:
+		case reflect.Int, reflect.Int64:
 			val, ok := val.(int64)
+
 			if !ok {
-				return fmt.Errorf("Cannot do assertion to 'int' on field "+
-					"'%s.%s %v'.",
-					t.Name(), t.Field(i).Name, v.Field(i).Kind())
+				return fmt.Errorf("Cannot do assertion from type '%s' to "+
+					"'int' (%s.%s %v).",
+					reflect.TypeOf(val), t.Name(), t.Field(i).Name, v.Field(i).Kind())
 			}
 
 			v.Field(i).SetInt(int64(val))
-
 		case reflect.String:
 			val, ok := val.(string)
 			if !ok {

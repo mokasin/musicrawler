@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"fmt"
 	"musicrawler/lib/database"
 	"testing"
 )
@@ -22,9 +23,9 @@ var str *aStruct = &aStruct{
 }
 
 var res database.Result = database.Result{
-	"myint":    2,
+	"myint":    int64(2),
 	"mystring": "a string",
-	"noset":    3,
+	"noset":    int64(3),
 }
 
 func TestEncode(t *testing.T) {
@@ -34,8 +35,8 @@ func TestEncode(t *testing.T) {
 	}
 
 	for i, v := range ent {
-		if v.Value != res[v.Column] {
-			t.Errorf("%d. Want: %v, Got: %s", i, res[v.Column], v.Value)
+		if fmt.Sprintf("%v", v.Value) != fmt.Sprintf("%v", res[v.Column]) {
+			t.Errorf("%d. Want: %v, Got: %v", i, res[v.Column], v.Value)
 		}
 	}
 }
@@ -61,7 +62,7 @@ func TestDecode(t *testing.T) {
 	}
 
 	for i, v := range wantgot {
-		if v.want != v.got {
+		if fmt.Sprintf("%v", v.want) != fmt.Sprintf("%v", v.got) {
 			t.Errorf("%d. Want: %v, Got: %v", i, v.want, v.got)
 		}
 	}
