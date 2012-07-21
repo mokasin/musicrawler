@@ -1366,23 +1366,23 @@ if (navigator.userAgent.match(/webkit/i) && navigator.userAgent.match(/mobile/i)
 
 soundManager.setup({
   html5PollingInterval: 50, // increased framerate for whileplaying() etc.
-  debugMode: (window.location.href.match(/debug=1/i)), // disable or enable debug output
+  //debugMode: (window.location.href.match(/debug=1/i)), // disable or enable debug output
   consoleOnly: true,
   flashVersion: 9,
   useHighPerformance: true,
-  useFlashBlock: true
+  useFlashBlock: false
 });
 
-// FPS data, testing/debug only
-if (soundManager.debugMode) {
-  window.setInterval(function() {
-    var p = window.threeSixtyPlayer;
-    if (p && p.lastSound && p.lastSound._360data.fps && typeof window.isHome === 'undefined') {
-      soundManager._writeDebug('fps: ~'+p.lastSound._360data.fps);
-      p.lastSound._360data.fps = 0;
-    }
-  },1000);
-}
+//// FPS data, testing/debug only
+//if (soundManager.debugMode) {
+//  window.setInterval(function() {
+//    var p = window.threeSixtyPlayer;
+//    if (p && p.lastSound && p.lastSound._360data.fps && typeof window.isHome === 'undefined') {
+//      soundManager._writeDebug('fps: ~'+p.lastSound._360data.fps);
+//      p.lastSound._360data.fps = 0;
+//    }
+//  },1000);
+//}
 
 window.ThreeSixtyPlayer = ThreeSixtyPlayer; // constructor
 
