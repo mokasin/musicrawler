@@ -118,10 +118,27 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				Name: tag.Artist,
 			}
 
-			artist_id, err := martists.Insert(artist)
+			res, err := martists.InsertIgnore(artist)
 			if err != nil {
 				statusErr = err
 				break
+			}
+
+			aff, _ := res.RowsAffected()
+
+			var artist_id int64
+
+			// if entry exists
+			if aff == 0 {
+				err = query.New(db, "artist").Where("name =", tag.Artist).Exec(artist)
+				if err != nil {
+					statusErr = err
+					break
+				}
+
+				artist_id = artist.Id
+			} else {
+				artist_id, _ = res.LastInsertId()
 			}
 
 			album := &model.Album{
@@ -129,10 +146,27 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				ArtistID: artist_id,
 			}
 
-			album_id, err := malbums.Insert(album)
+			res, err = malbums.InsertIgnore(album)
 			if err != nil {
 				statusErr = err
 				break
+			}
+
+			aff, _ = res.RowsAffected()
+
+			var album_id int64
+
+			// if entry exists
+			if aff == 0 {
+				err = query.New(db, "album").Where("name =", tag.Album).Exec(album)
+				if err != nil {
+					statusErr = err
+					break
+				}
+
+				album_id = album.Id
+			} else {
+				album_id, _ = res.LastInsertId()
 			}
 
 			track := &model.RawTrack{

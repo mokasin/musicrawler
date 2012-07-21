@@ -17,6 +17,7 @@
 package mod
 
 import (
+	"database/sql"
 	. "musicrawler/lib/database"
 	"musicrawler/lib/database/encoding"
 )
@@ -30,20 +31,20 @@ func New(db *Database, table string) *Mod {
 	return &Mod{db: db, table: table}
 }
 
-func (self *Mod) Insert(item interface{}) (id int64, err error) {
-	return self.insert(item, true)
+func (self *Mod) Insert(item interface{}) (sql.Result, error) {
+	return self.insert(item, false)
 }
 
-func (self *Mod) InsertStrict(item interface{}) (id int64, err error) {
-	return self.insert(item, false)
+func (self *Mod) InsertIgnore(item interface{}) (sql.Result, error) {
+	return self.insert(item, true)
 }
 
 // Insert adds a new row the associated table from the given struct. If ignore
 // is true it ignores duplication conflicts.
-func (self *Mod) insert(item interface{}, ignore bool) (id int64, err error) {
+func (self *Mod) insert(item interface{}, ignore bool) (sql.Result, error) {
 	entries, err := encoding.Encode(item)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	var sql, cols, qmarks string
@@ -69,14 +70,10 @@ func (self *Mod) insert(item interface{}, ignore bool) (id int64, err error) {
 
 	res, err := self.db.Execute(sql, vals...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	id, err = res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
+	return res, nil
 }
 
 // Update updates a entry with ID id in the associated table.
