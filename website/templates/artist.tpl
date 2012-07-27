@@ -21,6 +21,8 @@
 						</a>
 					</td>
 				</tr>
+			{{else}}
+				<tr><td>Artist has no albums.</td></tr>
 			{{end}}
 		</tbody>
 	</table>

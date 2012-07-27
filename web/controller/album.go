@@ -87,8 +87,13 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request, select
 	var album album.Album
 
 	err = query.New(self.Db, "album").Find(id).Exec(&album)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err == query.ErrNoResults {
+		http.NotFound(w, r)
 		return
 	}
 
@@ -100,7 +105,7 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request, select
 
 	err = q.Order("tracknumber").Exec(&tracks)
 
-	if err != nil {
+	if err != nil && err != query.ErrNoResults {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

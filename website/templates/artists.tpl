@@ -25,6 +25,8 @@
 						</a>
 					</td>
 				</tr>
+			{{else}}
+				<tr><td>No such artist in database.</td></tr>
 			{{end}}
 		</tbody>
 	</table>

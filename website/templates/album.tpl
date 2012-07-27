@@ -35,6 +35,10 @@
 					<td>{{.Year}}</td>
 					<td>{{.LengthString}}</td>
 				</tr>
+			{{else}}
+				<tr>
+					<td>Album has no tracks.</td>
+				</tr>
 			{{end}}
 		</tbody>
 	</table>

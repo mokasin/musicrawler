@@ -133,11 +133,15 @@ func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request, selec
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if err == query.ErrNoResults {
+		http.NotFound(w, r)
+		return
+	}
 
 	var albums []album.Album
 
 	err = artist.AlbumsQuery(self.Db).Order("name").Exec(&albums)
-	if err != nil {
+	if err != nil && err != query.ErrNoResults {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
