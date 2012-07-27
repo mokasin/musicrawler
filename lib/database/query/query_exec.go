@@ -17,9 +17,12 @@
 package query
 
 import (
+	"errors"
 	"fmt"
 	. "musicrawler/lib/database/encoding"
 )
+
+var ErrNoResults = errors.New("Query returned no results.")
 
 // Exec queries database with query and writes results into dest. Dest must be a
 // pointer to a slice of structs.
@@ -34,6 +37,10 @@ func (self *Query) Exec(dest interface{}) error {
 	res, err := self.db.Query(sql.SQL, sql.Args...)
 	if err != nil {
 		return err
+	}
+
+	if len(res) == 0 {
+		return ErrNoResults
 	}
 
 	// writing result into structs given by the caller

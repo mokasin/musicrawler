@@ -14,13 +14,13 @@
  *  along with the program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package web
+package controller
 
 import (
-	"fmt"
 	"musicrawler/lib/database"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/web/controller"
+	"musicrawler/lib/web/router"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -36,14 +36,14 @@ type trackPathId struct {
 	Path string `column:"path"`
 }
 
-func NewControllerContent(db *database.Database, route, filepath string) *ControllerContent {
+func NewContent(db *database.Database, router *router.Router, filepath string) *ControllerContent {
 	return &ControllerContent{
-		controller.Controller: *controller.NewController(db, route, filepath),
+		controller.Controller: *controller.NewController(db, router, filepath),
 	}
 }
 
 // Serving a audio file that has an entry in the database.
-func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, selector string) {
+func (self *ControllerContent) Show(w http.ResponseWriter, r *http.Request, selector string) {
 	// Remove .mp3/.ogg
 	base := filepath.Base(selector)
 	if len(base) != 0 {
@@ -64,6 +64,4 @@ func (self *ControllerContent) Select(w http.ResponseWriter, r *http.Request, se
 	}
 
 	http.ServeFile(w, r, track.Path)
-
-	msg(fmt.Sprintf("Serving \"%s\" to %s", track.Path, r.RemoteAddr), nil)
 }

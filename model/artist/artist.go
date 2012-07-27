@@ -14,9 +14,10 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package model
+package artist
 
 import (
+	"errors"
 	. "musicrawler/lib/database"
 	"musicrawler/lib/database/query"
 )
@@ -34,9 +35,39 @@ func CreateArtistTable(db *Database) error {
 type Artist struct {
 	Id   int64  `column:"ID" set:"0"`
 	Name string `column:"name"`
+	Link string
 }
 
 // Albums returns a prepared Query to query the albums of the artist.
 func (self *Artist) AlbumsQuery(db *Database) *query.Query {
 	return query.New(db, "album").Where("artist_id =", self.Id)
+}
+
+var ErrNoEntries = errors.New("No entries in database")
+
+func FirstLetters(db *Database) (alpha, nonalpha string, err error) {
+	// get first letter of artists
+	q := query.New(db, "artist").Order("name")
+	alpha, nonalpha, err = q.Letters("name")
+
+	if err != nil {
+		return
+	}
+
+	if len(alpha) == 0 && len(nonalpha) == 0 {
+		err = ErrNoEntries
+	}
+
+	return
+}
+
+var alphabet = []interface{}{
+	"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+	"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+}
+
+func NonAlphaArtists(db *Database) *query.Query {
+	return query.New(db, "artist").WhereIn(
+		"SUBSTR(UPPER(name),1,1) NOT", alphabet...,
+	)
 }

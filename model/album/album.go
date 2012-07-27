@@ -14,7 +14,7 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package model
+package album
 
 import (
 	. "musicrawler/lib/database"
@@ -43,6 +43,7 @@ type Album struct {
 	Id       int64  `column:"ID" set:"0"`
 	Name     string `column:"name"`
 	ArtistID int64  `column:"artist_id"`
+	Link     string
 }
 
 func (self *Album) ArtistQuery(db *Database) *query.Query {
