@@ -1,3 +1,5 @@
 musicrawler
 *~
 *.db
+*.out
+*.test

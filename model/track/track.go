@@ -14,7 +14,7 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package model
+package track
 
 import (
 	"fmt"
@@ -63,6 +63,7 @@ type Track struct {
 	Genre       string `column:"track:genre"`
 	Artist      string `column:"artist:name"`
 	Album       string `column:"album:name"`
+	Link        string
 }
 
 func (self *RawTrack) AlbumQuery(db *Database) *query.Query {

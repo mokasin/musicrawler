@@ -14,72 +14,43 @@
  *  along with the program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package web
+package controller
 
 import (
 	"fmt"
 	"musicrawler/lib/database"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/web/controller"
-	"musicrawler/model"
+	"musicrawler/lib/web/router"
+	"musicrawler/model/album"
+	"musicrawler/model/artist"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
 
-type artistLink struct {
-	Artist model.Artist
-	Path   string
-}
-
-type artistsIndexTmpl struct {
-	Pager   []activelink
-	Artists []artistLink
-}
-
-type albumLink struct {
-	Album model.Album
-	Path  string
-}
-
-type artistsSelectTmpl struct {
-	Artist *model.Artist
-	Albums []albumLink
-}
-
 // Controller to serve artists
-type ControllerArtists struct {
+type ControllerArtist struct {
 	controller.Controller
 }
 
 // Constructor.
-func NewControllerArtists(db *database.Database, route, filepath string) *ControllerArtists {
-	c := &ControllerArtists{
-		controller.Controller: *controller.NewController(db, route, filepath),
+func NewArtist(db *database.Database, router *router.Router, filepath string) *ControllerArtist {
+	c := &ControllerArtist{
+		controller.Controller: *controller.NewController(db, router, filepath),
 	}
 
 	c.AddTemplate("index", "index", "artists")
-	c.AddTemplate("select", "index", "artist")
+	c.AddTemplate("show", "index", "artist")
 
 	return c
 }
 
 // Implementation of SelectHandler.
-func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
-
-	// get first letter of artists
-	q := query.New(self.Db, "artist").Order("name")
-
-	al, nal, err := q.Letters("name")
-
+func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
+	al, nal, err := artist.FirstLetters(self.Db)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(al) == 0 && len(nal) == 0 {
-		http.Error(w, "No entries in database", http.StatusInternalServerError)
 		return
 	}
 
@@ -90,45 +61,20 @@ func (self *ControllerArtists) Index(w http.ResponseWriter, r *http.Request) {
 
 	page := r.URL.Query().Get("page")
 
-	// just go to the first page by default
-	if page == "" {
+	switch {
+	case page == "":
+		// just go to the first page by default
 		self.byFirstLetter(w, r, al, rune(al[0]))
-		return
-	}
-
-	// No request should contain more than 1 letter.
-	if len(page) != 1 {
+	case len(page) != 1:
+		// No request should contain more than 1 letter.
 		http.NotFound(w, r)
-		return
+	default:
+		self.byFirstLetter(w, r, al, rune(page[0]))
 	}
-
-	self.byFirstLetter(w, r, al, rune(page[0]))
-}
-
-func (self *ControllerArtists) generatePager(al, active string) []activelink {
-	// creating pager
-	pager := make([]activelink, len(al))
-
-	for i := 0; i < len(al); i++ {
-		if string(al[i]) == active {
-			pager[i].Active = true
-		}
-		pager[i].Label = string(al[i])
-		v := url.Values{}
-		v.Add("page", string(al[i]))
-		pager[i].Path = "/" + self.Route + "?" + v.Encode()
-	}
-
-	return pager
-}
-
-var alphabet = []interface{}{
-	"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
-	"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 }
 
 // firstLetter shows a list of all artists whom's name starting with letter.
-func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Request, letters string, page rune) {
+func (self *ControllerArtist) byFirstLetter(w http.ResponseWriter, r *http.Request, letters string, page rune) {
 	var err error
 	if err := self.Db.BeginTransaction(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -136,18 +82,17 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 	}
 	defer self.Db.EndTransaction()
 
+	// url validation
 	if !strings.ContainsRune(letters, page) {
 		http.NotFound(w, r)
 		return
 	}
 
 	// populating data
-	var artists []model.Artist
+	var artists []artist.Artist
 
 	if string(page) == "0" {
-		err = query.New(self.Db, "artist").WhereIn(
-			"SUBSTR(UPPER(name),1,1) NOT", alphabet...,
-		).Exec(&artists)
+		err = artist.NonAlphaArtists(self.Db).Exec(&artists)
 	} else {
 		err = query.New(self.Db, "artist").Like("name", string(page)+"%").Exec(&artists)
 	}
@@ -157,27 +102,22 @@ func (self *ControllerArtists) byFirstLetter(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var td artistsIndexTmpl
-	td.Artists = make([]artistLink, len(artists))
-
 	// prepare structure for template
 	for i := 0; i < len(artists); i++ {
-		td.Artists[i].Artist = artists[i]
-		td.Artists[i].Path = fmt.Sprintf("/%s/%d", self.Route, artists[i].Id)
+		artists[i].Link = fmt.Sprintf("%s/%d", self.Route(), artists[i].Id)
 	}
 
-	td.Pager = self.generatePager(letters, string(page))
+	self.AddDataToTemplate("index", "Artists", artists)
 
 	// render the website
 	self.RenderPage(
 		w,
 		"index",
 		&controller.Page{Title: "Artists starting with " + string(page)},
-		td,
 	)
 }
 
-func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, selector string) {
+func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request, selector string) {
 	id, err := strconv.Atoi(selector)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -190,7 +130,7 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 	}
 	defer self.Db.EndTransaction()
 
-	var artist model.Artist
+	var artist artist.Artist
 	err = query.New(self.Db, "artist").Find(id).Exec(&artist)
 
 	if err != nil {
@@ -198,7 +138,7 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	var albums []model.Album
+	var albums []album.Album
 
 	err = artist.AlbumsQuery(self.Db).Order("name").Exec(&albums)
 	if err != nil {
@@ -206,21 +146,18 @@ func (self *ControllerArtists) Select(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	var td = artistsSelectTmpl{Artist: &artist}
-	td.Albums = make([]albumLink, len(albums))
-
-	// prepare structure for template
 	for i := 0; i < len(albums); i++ {
-		td.Albums[i].Album = albums[i]
-		//TODO don't hard code pathes
-		td.Albums[i].Path = fmt.Sprintf("/%s/%d", "album", albums[i].Id)
+		albums[i].Link = fmt.Sprintf("%s/%d",
+			self.Router.GetRouteOf("album"), albums[i].Id)
 	}
+
+	self.AddDataToTemplate("show", "Arist", &artist)
+	self.AddDataToTemplate("show", "Albums", &albums)
 
 	// render the website
 	self.RenderPage(
 		w,
-		"select",
+		"show",
 		&controller.Page{Title: artist.Name},
-		td,
 	)
 }

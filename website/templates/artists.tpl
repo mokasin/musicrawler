@@ -20,8 +20,8 @@
 			{{range .Artists}}
 				<tr>
 					<td>
-						<a href="{{.Path}}">
-							{{.Artist.Name}}
+						<a href="{{.Link}}">
+							{{.Name}}
 						</a>
 					</td>
 				</tr>

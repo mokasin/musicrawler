@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"log"
 	"musicrawler/lib/database"
-	"musicrawler/model"
+	"musicrawler/model/album"
+	"musicrawler/model/artist"
+	"musicrawler/model/track"
 	"musicrawler/source/filecrawler"
 	"musicrawler/web"
 	"os"
@@ -114,9 +116,9 @@ func main() {
 	defer mydb.Close()
 
 	// Create database tables
-	mydb.Register(model.CreateArtistTable)
-	mydb.Register(model.CreateAlbumTable)
-	mydb.Register(model.CreateTrackTable)
+	mydb.Register(artist.CreateArtistTable)
+	mydb.Register(album.CreateAlbumTable)
+	mydb.Register(track.CreateTrackTable)
 
 	err = mydb.CreateDatabase()
 	if err != nil && err != database.ErrDatabaseExists {
@@ -151,8 +153,8 @@ func main() {
 
 	status := make(chan *web.Status, 1000)
 
-	h := web.NewHTTPTrackServer(mydb, status)
-	go h.StartListing()
+	w := web.New(mydb, status)
+	go w.StartListening()
 
 	fmt.Println("   ...Listening on :8080")
 

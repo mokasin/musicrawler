@@ -21,7 +21,9 @@ import (
 	"musicrawler/lib/database"
 	"musicrawler/lib/database/mod"
 	"musicrawler/lib/database/query"
-	"musicrawler/model"
+	"musicrawler/model/album"
+	"musicrawler/model/artist"
+	"musicrawler/model/track"
 	"musicrawler/source"
 )
 
@@ -114,7 +116,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				break
 			}
 
-			artist := &model.Artist{
+			artist := &artist.Artist{
 				Name: tag.Artist,
 			}
 
@@ -141,7 +143,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				artist_id, _ = res.LastInsertId()
 			}
 
-			album := &model.Album{
+			album := &album.Album{
 				Name:     tag.Album,
 				ArtistID: artist_id,
 			}
@@ -169,7 +171,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				album_id, _ = res.LastInsertId()
 			}
 
-			track := &model.RawTrack{
+			track := &track.RawTrack{
 				Path:        ti.Path(),
 				Title:       tag.Title,
 				Tracknumber: tag.Track,

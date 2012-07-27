@@ -14,51 +14,64 @@
  *  along with the program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package web
+package controller
 
 import (
 	"fmt"
 	"musicrawler/lib/database"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/web/controller"
-	"musicrawler/model"
+	"musicrawler/lib/web/router"
+	"musicrawler/model/album"
+	"musicrawler/model/track"
 	"net/http"
 	"path/filepath"
 	"strconv"
 )
 
-type trackLink struct {
-	Track model.Track
-	Path  string
-}
-
-type albumsSelectTmpl struct {
-	Album  *model.Album
-	Tracks []trackLink
-}
-
 // Controller to serve artists
-type ControllerAlbums struct {
+type ControllerAlbum struct {
 	controller.Controller
 }
 
 // Constructor.
-func NewControllerAlbums(db *database.Database, route, filepath string) *ControllerAlbums {
-	c := &ControllerAlbums{
-		controller.Controller: *controller.NewController(db, route, filepath),
+func NewAlbum(db *database.Database, router *router.Router, filepath string) *ControllerAlbum {
+	c := &ControllerAlbum{
+		controller.Controller: *controller.NewController(db, router, filepath),
 	}
 
-	c.AddTemplate("select", "index", "album")
+	c.AddTemplate("index", "index", "albums")
+	c.AddTemplate("show", "index", "album")
 
 	return c
 }
 
 // Implementation of SelectHandler.
-func (self *ControllerAlbums) Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Not implemented yet.")
+func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
+	var albums []album.Album
+
+	err := query.New(self.Db, "album").Exec(&albums)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// prepare structure for template
+	for i := 0; i < len(albums); i++ {
+		albums[i].Link = fmt.Sprintf("%s/%d", self.Router.GetRouteOf("album"), albums[i].Id)
+	}
+
+	self.AddDataToTemplate("index", "Albums", &albums)
+
+	// render the website
+	self.RenderPage(
+		w,
+		"index",
+		&controller.Page{Title: "Albums"},
+	)
 }
 
-func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, selector string) {
+func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request, selector string) {
 	id, err := strconv.Atoi(selector)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -71,7 +84,7 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 	}
 	defer self.Db.EndTransaction()
 
-	var album model.Album
+	var album album.Album
 
 	err = query.New(self.Db, "album").Find(id).Exec(&album)
 	if err != nil {
@@ -79,7 +92,7 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 		return
 	}
 
-	var tracks []model.Track
+	var tracks []track.Track
 
 	q := album.TracksQuery(self.Db)
 	q.Join("album", "id", "", "album_id")
@@ -92,21 +105,23 @@ func (self *ControllerAlbums) Select(w http.ResponseWriter, r *http.Request, sel
 		return
 	}
 
-	var td = albumsSelectTmpl{Album: &album}
-	td.Tracks = make([]trackLink, len(tracks))
-
 	// prepare structure for template
 	for i := 0; i < len(tracks); i++ {
-		td.Tracks[i].Track = tracks[i]
-		td.Tracks[i].Path = fmt.Sprintf("/%s/%d/%s",
-			"content", tracks[i].Id, filepath.Base(tracks[i].Path))
+		tracks[i].Link = fmt.Sprintf(
+			"%s/%d/%s",
+			self.Router.GetRouteOf("content"),
+			tracks[i].Id,
+			filepath.Base(tracks[i].Path),
+		)
 	}
+
+	self.AddDataToTemplate("show", "Album", &album)
+	self.AddDataToTemplate("show", "Tracks", &tracks)
 
 	// render the website
 	self.RenderPage(
 		w,
-		"select",
+		"show",
 		&controller.Page{Title: album.Name},
-		td,
 	)
 }

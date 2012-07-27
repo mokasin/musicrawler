@@ -27,17 +27,22 @@ type IndexHandler interface {
 }
 
 // Handler to list resources that get selected by selector.
-type SelectHandler interface {
-	Select(http.ResponseWriter, *http.Request, string)
+type ShowHandler interface {
+	Show(http.ResponseWriter, *http.Request, string)
+}
+
+type Handler interface {
+	SetRoute(string)
+	Route() string
 }
 
 type Router struct {
-	routes       map[string]interface{}
+	routes       map[string]Handler
 	defaultRoute string
 }
 
 func NewRouter() *Router {
-	return &Router{routes: make(map[string]interface{})}
+	return &Router{routes: make(map[string]Handler)}
 }
 
 func (self *Router) SetDefaultRoute(dr string) {
@@ -91,18 +96,19 @@ func (self *Router) RouteHandler(w http.ResponseWriter, req *http.Request) {
 
 		handler.Index(w, req)
 	} else {
-		handler, ok := route.(SelectHandler)
+		handler, ok := route.(ShowHandler)
 		if !ok {
 			NotImplemented(w)
 		}
 
-		handler.Select(w, req, selector)
+		handler.Show(w, req, selector)
 	}
 }
 
 // AddRoute registers a new route from a resource specified in an path to a
 // controller.
-func (self *Router) AddRoute(resource string, controller interface{}) {
+func (self *Router) AddRoute(resource string, controller Handler) {
+	controller.SetRoute(resource)
 	self.routes[resource] = controller
 
 	http.HandleFunc(
@@ -111,4 +117,14 @@ func (self *Router) AddRoute(resource string, controller interface{}) {
 			self.RouteHandler(w, req)
 		},
 	)
+}
+
+func (self *Router) GetRouteOf(resource string) string {
+	v, ok := self.routes[resource]
+
+	if !ok {
+		return ""
+	}
+
+	return "/" + strings.TrimLeft(v.Route(), "/")
 }
