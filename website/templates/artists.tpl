@@ -2,9 +2,9 @@
 <div class="btn-group" style="margin-bottom: 0.5em">
 	{{range .Pager}}
 		{{if .Active}}
-			<a class="btn btn-primary" href="#">{{.Label}}</a>
+			<a class="btn btn-primary" href="{{.Link}}">{{.Label}}</a>
 		{{else}}
-			<a class="btn" href="{{.Path}}">{{.Label}}</a>
+			<a class="btn" href="{{.Link}}">{{.Label}}</a>
 		{{end}}
 	{{end}}
 </div>

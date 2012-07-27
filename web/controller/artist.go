@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"musicrawler/lib/database"
 	"musicrawler/lib/database/query"
+	"musicrawler/lib/model/helper"
 	"musicrawler/lib/web/controller"
 	"musicrawler/lib/web/router"
 	"musicrawler/model/album"
@@ -54,9 +55,11 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	letters := al
+
 	// use zero to represent non alphabetic letters
 	if len(nal) != 0 {
-		al = "0" + al
+		letters = "0" + al
 	}
 
 	page := r.URL.Query().Get("page")
@@ -64,26 +67,15 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case page == "":
 		// just go to the first page by default
-		self.byFirstLetter(w, r, al, rune(al[0]))
+		page = string(al[0])
 	case len(page) != 1:
 		// No request should contain more than 1 letter.
 		http.NotFound(w, r)
-	default:
-		self.byFirstLetter(w, r, al, rune(page[0]))
-	}
-}
-
-// firstLetter shows a list of all artists whom's name starting with letter.
-func (self *ControllerArtist) byFirstLetter(w http.ResponseWriter, r *http.Request, letters string, page rune) {
-	var err error
-	if err := self.Db.BeginTransaction(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer self.Db.EndTransaction()
 
 	// url validation
-	if !strings.ContainsRune(letters, page) {
+	if !strings.ContainsAny(letters, page) {
 		http.NotFound(w, r)
 		return
 	}
@@ -94,7 +86,8 @@ func (self *ControllerArtist) byFirstLetter(w http.ResponseWriter, r *http.Reque
 	if string(page) == "0" {
 		err = artist.NonAlphaArtists(self.Db).Exec(&artists)
 	} else {
-		err = query.New(self.Db, "artist").Like("name", string(page)+"%").Exec(&artists)
+		err = query.New(self.Db, "artist").
+			Like("name", page+"%").Exec(&artists)
 	}
 
 	if err != nil {
@@ -107,7 +100,10 @@ func (self *ControllerArtist) byFirstLetter(w http.ResponseWriter, r *http.Reque
 		artists[i].Link = fmt.Sprintf("%s/%d", self.Route(), artists[i].Id)
 	}
 
+	pager := helper.NewPager(self.Route(), strings.Split(letters, ""), page)
+
 	self.AddDataToTemplate("index", "Artists", artists)
+	self.AddDataToTemplate("index", "Pager", pager)
 
 	// render the website
 	self.RenderPage(
