@@ -25,15 +25,19 @@
 				<tr>
 					<td>
 						<div class="sm2-inline-list ui360">
-							<a href="{{.Path}}" title="Play"></a>
+							<a href="{{.Link}}" title="Play"></a>
 						</div>
 					</td>
-					<td>{{.Track.Artist}}</td>
-					<td>{{.Track.Album}}</td>
-					<td><a href="{{.Path}}">{{.Track.Title}}</a></td>
-					<td>{{.Track.Tracknumber}}</td>
-					<td>{{.Track.Year}}</td>
-					<td>{{.Track.LengthString}}</td>
+					<td>{{.Artist}}</td>
+					<td>{{.Album}}</td>
+					<td><a href="{{.Link}}">{{.Title}}</a></td>
+					<td>{{.Tracknumber}}</td>
+					<td>{{.Year}}</td>
+					<td>{{.LengthString}}</td>
+				</tr>
+			{{else}}
+				<tr>
+					<td>Album has no tracks.</td>
 				</tr>
 			{{end}}
 		</tbody>
@@ -41,7 +45,7 @@
 </div>
 
 <!--/ Placed at the end of the document so the pages load faster -->
-<script src="/assets/js/SoundManager2/soundmanager2-nodebug-jsmin.js"></script> 
+<script src="/assets/js/SoundManager2/soundmanager2.js"></script> 
 <script src="/assets/js/soundmanager-settings.js"></script>
 
 <script src="/assets/widgets/360-player/script/berniecode-animator.js"></script>

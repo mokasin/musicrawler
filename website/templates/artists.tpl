@@ -2,9 +2,9 @@
 <div class="btn-group" style="margin-bottom: 0.5em">
 	{{range .Pager}}
 		{{if .Active}}
-			<a class="btn btn-primary" href="#">{{.Label}}</a>
+			<a class="btn btn-primary" href="{{.Link}}">{{.Label}}</a>
 		{{else}}
-			<a class="btn" href="{{.Path}}">{{.Label}}</a>
+			<a class="btn" href="{{.Link}}">{{.Label}}</a>
 		{{end}}
 	{{end}}
 </div>
@@ -20,11 +20,13 @@
 			{{range .Artists}}
 				<tr>
 					<td>
-						<a href="{{.Path}}">
-							{{.Artist.Name}}
+						<a href="{{.Link}}">
+							{{.Name}}
 						</a>
 					</td>
 				</tr>
+			{{else}}
+				<tr><td>No such artist in database.</td></tr>
 			{{end}}
 		</tbody>
 	</table>
