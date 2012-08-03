@@ -17,11 +17,11 @@
 package controller
 
 import (
-	"fmt"
-	"musicrawler/lib/database"
+	"code.google.com/p/gorilla/mux"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/web/controller"
-	"musicrawler/lib/web/router"
+	"musicrawler/lib/web/env"
+	"musicrawler/lib/web/tmpl"
 	"musicrawler/model/album"
 	"musicrawler/model/track"
 	"net/http"
@@ -35,13 +35,13 @@ type ControllerAlbum struct {
 }
 
 // Constructor.
-func NewAlbum(db *database.Database, router *router.Router, filepath string) *ControllerAlbum {
+func NewAlbum(env *env.Environment) *ControllerAlbum {
 	c := &ControllerAlbum{
-		controller.Controller: *controller.NewController(db, router, filepath),
+		controller.Controller: *controller.NewController(env),
 	}
 
-	c.AddTemplate("index", "index", "albums")
-	c.AddTemplate("show", "index", "album")
+	c.Tmpl.AddTemplate("album_index", "index", "albums")
+	c.Tmpl.AddTemplate("album_show", "index", "album")
 
 	return c
 }
@@ -50,7 +50,7 @@ func NewAlbum(db *database.Database, router *router.Router, filepath string) *Co
 func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 	var albums []album.Album
 
-	err := query.New(self.Db, "album").Exec(&albums)
+	err := query.New(self.Env.Db, "album").Exec(&albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -58,75 +58,84 @@ func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 
 	// prepare structure for template
 	for i := 0; i < len(albums); i++ {
-		albums[i].Link = fmt.Sprintf("%s/%d", self.Router.GetRouteOf("album"), albums[i].Id)
+		url, err := self.Env.Router.Get("album").URL(
+			"id", strconv.FormatInt(albums[i].Id, 10))
+
+		if err == nil {
+			albums[i].Link = url.String()
+		}
 	}
 
-	self.AddDataToTemplate("index", "Albums", &albums)
+	self.Tmpl.AddDataToTemplate("album_index", "Albums", &albums)
 
 	// render the website
-	self.RenderPage(
+	self.Tmpl.RenderPage(
 		w,
-		"index",
-		&controller.Page{Title: "Albums"},
+		"album_index",
+		&tmpl.Page{Title: "Albums"},
 	)
 }
 
-func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request, selector string) {
-	id, err := strconv.Atoi(selector)
+func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err := self.Db.BeginTransaction(); err != nil {
+	if err := self.Env.Db.BeginTransaction(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer self.Db.EndTransaction()
+	defer self.Env.Db.EndTransaction()
 
 	var album album.Album
 
-	err = query.New(self.Db, "album").Find(id).Exec(&album)
+	err = query.New(self.Env.Db, "album").Find(id).Exec(&album)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err == query.ErrNoResults {
-		http.NotFound(w, r)
 		return
 	}
 
 	var tracks []track.Track
 
-	q := album.TracksQuery(self.Db)
+	q := album.TracksQuery(self.Env.Db)
 	q.Join("album", "id", "", "album_id")
 	q.Join("artist", "id", "album", "artist_id")
 
 	err = q.Order("tracknumber").Exec(&tracks)
 
-	if err != nil && err != query.ErrNoResults {
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// prepare structure for template
 	for i := 0; i < len(tracks); i++ {
-		tracks[i].Link = fmt.Sprintf(
-			"%s/%d/%s",
-			self.Router.GetRouteOf("content"),
-			tracks[i].Id,
-			filepath.Base(tracks[i].Path),
+		url, err := self.URL(
+			"content",
+			"id", strconv.FormatInt(tracks[i].Id, 10),
+			"filename", filepath.Base(tracks[i].Path),
 		)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err == nil {
+			tracks[i].Link = url.String()
+		}
 	}
 
-	self.AddDataToTemplate("show", "Album", &album)
-	self.AddDataToTemplate("show", "Tracks", &tracks)
+	self.Tmpl.AddDataToTemplate("album_show", "Album", &album)
+	self.Tmpl.AddDataToTemplate("album_show", "Tracks", &tracks)
 
 	// render the website
-	self.RenderPage(
+	self.Tmpl.RenderPage(
 		w,
-		"show",
-		&controller.Page{Title: album.Name},
+		"album_show",
+		&tmpl.Page{Title: album.Name},
 	)
 }
