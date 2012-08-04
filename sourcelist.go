@@ -19,7 +19,7 @@ package main
 import (
 	"container/list"
 	"musicrawler/lib/database"
-	"musicrawler/source"
+	"musicrawler/lib/source"
 )
 
 // Struct to manage different track sources

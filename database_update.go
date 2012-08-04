@@ -21,10 +21,10 @@ import (
 	"musicrawler/lib/database"
 	"musicrawler/lib/database/mod"
 	"musicrawler/lib/database/query"
+	"musicrawler/lib/source"
 	"musicrawler/model/album"
 	"musicrawler/model/artist"
 	"musicrawler/model/track"
-	"musicrawler/source"
 )
 
 // define databse actions
