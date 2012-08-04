@@ -18,7 +18,7 @@ package web
 
 import (
 	"musicrawler/lib/database"
-	"musicrawler/lib/web/router"
+	"musicrawler/lib/web/env"
 	"musicrawler/web/controller"
 	"net/http"
 	"time"
@@ -26,7 +26,7 @@ import (
 
 // FIXME to ungeneric
 const websitePath = "website/"
-const websiteAssetsPath = websitePath + "assets/"
+const assetsPath = websitePath + "assets/"
 
 var statusChannel chan<- *Status
 
@@ -47,39 +47,74 @@ func msg(msg string, err error) {
 
 // Manages a HTTP server to serve audio files saved in database. 
 type Webserver struct {
-	db     *database.Database
-	router *router.Router
+	env *env.Environment
+
+	cartist  *controller.ControllerArtist
+	calbum   *controller.ControllerAlbum
+	ccontent *controller.ControllerContent
 }
 
 // Constructor of Webserver. Needs an db.db to work on.
-func New(i *database.Database, stat chan<- *Status) *Webserver {
+func New(db *database.Database, stat chan<- *Status) *Webserver {
 	// set global variable
 	statusChannel = stat
 
-	return &Webserver{db: i, router: router.NewRouter()}
+	env := env.New(db, websitePath)
+
+	w := &Webserver{
+		env: env,
+
+		cartist:  controller.NewArtist(env),
+		calbum:   controller.NewAlbum(env),
+		ccontent: controller.NewContent(env),
+	}
+
+	w.establishRoutes()
+
+	return w
+}
+
+func (self *Webserver) establishRoutes() {
+	self.env.Router.HandleFunc("/",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.cartist.Show(w, r)
+		}).Methods("GET")
+
+	self.env.Router.HandleFunc("/artist",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.cartist.Index(w, r)
+		}).Methods("GET").Name("artist_base")
+
+	self.env.Router.HandleFunc("/artist/{id:[0-9]+}",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.cartist.Show(w, r)
+		}).Methods("GET").Name("artist")
+
+	self.env.Router.HandleFunc("/album",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.calbum.Index(w, r)
+		}).Methods("GET")
+
+	self.env.Router.HandleFunc("/album/{id:[0-9]+}",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.calbum.Show(w, r)
+		}).Name("album")
+
+	self.env.Router.HandleFunc("/content/{id:[0-9]+}/{filename}",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.ccontent.Show(w, r)
+		}).Methods("GET").Name("content")
+
+	// Just serve the assets.
+	http.Handle("/assets/",
+		http.StripPrefix("/assets/", http.FileServer(http.Dir(assetsPath))))
+
+	// let the router handle the rest
+	http.Handle("/", self.env.Router)
 }
 
 // Starts http server on port 8080 and set routes.
 func (self *Webserver) StartListening() {
-	// Adding routes
-
-	self.router.AddRoute("artist", controller.NewArtist(self.db, self.router, websitePath))
-	self.router.AddRoute("album", controller.NewAlbum(self.db, self.router, websitePath))
-	self.router.AddRoute("content", controller.NewContent(self.db, self.router, websitePath))
-
-	self.router.SetDefaultRoute("artist")
-
-	// Just serve the assets.
-	http.Handle("/assets/",
-		http.StripPrefix("/assets/", http.FileServer(http.Dir(websiteAssetsPath))))
-
-	// let the router handle the rest
-	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		self.router.RouteHandler(w, req)
-	})
-
-	// and start the server.
 	err := http.ListenAndServe(":8080", nil)
-
 	msg("", err)
 }

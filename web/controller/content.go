@@ -17,14 +17,12 @@
 package controller
 
 import (
-	"musicrawler/lib/database"
+	"code.google.com/p/gorilla/mux"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/web/controller"
-	"musicrawler/lib/web/router"
+	"musicrawler/lib/web/env"
 	"net/http"
-	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 type ControllerContent struct {
@@ -36,21 +34,16 @@ type trackPathId struct {
 	Path string `column:"path"`
 }
 
-func NewContent(db *database.Database, router *router.Router, filepath string) *ControllerContent {
+func NewContent(env *env.Environment) *ControllerContent {
 	return &ControllerContent{
-		controller.Controller: *controller.NewController(db, router, filepath),
+		controller.Controller: *controller.NewController(env),
 	}
 }
 
 // Serving a audio file that has an entry in the database.
-func (self *ControllerContent) Show(w http.ResponseWriter, r *http.Request, selector string) {
-	// Remove .mp3/.ogg
-	base := filepath.Base(selector)
-	if len(base) != 0 {
-		selector = selector[:strings.LastIndex(selector, "/")]
-	}
+func (self *ControllerContent) Show(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
 
-	id, err := strconv.Atoi(selector)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -58,9 +51,10 @@ func (self *ControllerContent) Show(w http.ResponseWriter, r *http.Request, sele
 
 	var track trackPathId
 
-	err = query.New(self.Db, "track").Find(id).Exec(&track)
+	err = query.New(self.Env.Db, "track").Find(id).Exec(&track)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	http.ServeFile(w, r, track.Path)
