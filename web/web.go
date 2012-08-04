@@ -85,6 +85,8 @@ func (self *Webserver) establishRoutes() {
 			self.cartist.Show(w, r)
 		}).Methods("GET")
 
+	/* artist */
+
 	self.env.Router.HandleFunc("/artist",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.cartist.Index(w, r)
@@ -94,6 +96,23 @@ func (self *Webserver) establishRoutes() {
 		func(w http.ResponseWriter, r *http.Request) {
 			self.cartist.Show(w, r)
 		}).Methods("GET").Name("artist")
+
+	self.env.Router.HandleFunc("/artist.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.cartist.IndexJSON(w, r)
+		}).Methods("GET")
+
+	self.env.Router.HandleFunc("/artist/{id:[0-9]+}.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.cartist.ShowJSON(w, r)
+		}).Methods("GET")
+
+	self.env.Router.HandleFunc("/artist/{id:[0-9]+}/albums.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.cartist.AlbumsJSON(w, r)
+		}).Methods("GET")
+
+	/* album */
 
 	self.env.Router.HandleFunc("/album",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -105,10 +124,29 @@ func (self *Webserver) establishRoutes() {
 			self.calbum.Show(w, r)
 		}).Methods("GET").Name("album")
 
+	self.env.Router.HandleFunc("/album.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.calbum.IndexJSON(w, r)
+		}).Methods("GET")
+
+	self.env.Router.HandleFunc("/album/{id:[0-9]+}.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.calbum.ShowJSON(w, r)
+		}).Methods("GET")
+
+	self.env.Router.HandleFunc("/album/{id:[0-9]+}/tracks.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			self.calbum.TracksJSON(w, r)
+		}).Methods("GET")
+
+	/* content */
+
 	self.env.Router.HandleFunc("/content/{id:[0-9]+}/{filename}",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.ccontent.Show(w, r)
 		}).Methods("GET").Name("content")
+
+	/* assets */
 
 	// Just serve the assets.
 	http.Handle("/assets/",
