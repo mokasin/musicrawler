@@ -78,22 +78,22 @@ func (self *Webserver) establishRoutes() {
 	self.env.Router.HandleFunc("/",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.cartist.Show(w, r)
-		})
+		}).Methods("GET")
 
 	self.env.Router.HandleFunc("/artist",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.cartist.Index(w, r)
-		}).Name("artist_base")
+		}).Methods("GET").Name("artist_base")
 
 	self.env.Router.HandleFunc("/artist/{id:[0-9]+}",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.cartist.Show(w, r)
-		}).Name("artist")
+		}).Methods("GET").Name("artist")
 
 	self.env.Router.HandleFunc("/album",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.calbum.Index(w, r)
-		})
+		}).Methods("GET")
 
 	self.env.Router.HandleFunc("/album/{id:[0-9]+}",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func (self *Webserver) establishRoutes() {
 	self.env.Router.HandleFunc("/content/{id:[0-9]+}/{filename}",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.ccontent.Show(w, r)
-		}).Name("content")
+		}).Methods("GET").Name("content")
 
 	// Just serve the assets.
 	http.Handle("/assets/",
