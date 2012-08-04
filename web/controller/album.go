@@ -50,13 +50,14 @@ func NewAlbum(env *env.Environment) *ControllerAlbum {
 func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 	var albums []album.Album
 
+	// retreive all albums
 	err := query.New(self.Env.Db, "album").Exec(&albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// prepare structure for template
+	// prepare data for template
 	for i := 0; i < len(albums); i++ {
 		url, err := self.Env.Router.Get("album").URL(
 			"id", strconv.FormatInt(albums[i].Id, 10))
@@ -89,6 +90,7 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	defer self.Env.Db.EndTransaction()
 
+	// retreive album by id
 	var album album.Album
 
 	err = query.New(self.Env.Db, "album").Find(id).Exec(&album)
@@ -98,6 +100,7 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// retreive tracks of album
 	var tracks []track.Track
 
 	q := album.TracksQuery(self.Env.Db)
@@ -111,7 +114,7 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// prepare structure for template
+	// prepare data for template
 	for i := 0; i < len(tracks); i++ {
 		url, err := self.URL(
 			"content",

@@ -23,12 +23,15 @@ import (
 	"net/url"
 )
 
+// Base controller type. A controller needs access to the enviroment (database,
+// router, ...) and has to manage templates.
 type Controller struct {
 	Env  *env.Environment
 	Tmpl *tmpl.Template
 }
 
-// Constructor. Needs templates to register.
+// Constructor. An environment must be provided so the controller has acces to
+// database, router, ...
 func NewController(env *env.Environment) *Controller {
 	return &Controller{
 		Env:  env,
@@ -36,6 +39,10 @@ func NewController(env *env.Environment) *Controller {
 	}
 }
 
+// URL returns an url to the to a route. The first argument must be the name of
+// the route. Then pairs of arguments can be given.
+//
+// See gorilla/mux URL-Method for further help.
 func (self *Controller) URL(s ...string) (*url.URL, error) {
 
 	r := self.Env.Router.Get(s[0])

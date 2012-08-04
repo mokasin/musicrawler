@@ -95,7 +95,7 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// prepare structure for template
+	// prepare data for template
 	for i := 0; i < len(artists); i++ {
 		url, err := self.URL(
 			"artist",
@@ -141,7 +141,9 @@ func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	defer self.Env.Db.EndTransaction()
 
+	// retreive artist by id
 	var artist artist.Artist
+
 	err = query.New(self.Env.Db, "artist").Find(id).Exec(&artist)
 
 	if err != nil {
@@ -149,14 +151,17 @@ func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// retreive albums of artist
 	var albums []album.Album
 
 	err = artist.AlbumsQuery(self.Env.Db).Order("name").Exec(&albums)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// prepare data for template
 	for i := 0; i < len(albums); i++ {
 		url, err := self.URL(
 			"album",
