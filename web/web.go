@@ -20,6 +20,7 @@ import (
 	"musicrawler/lib/database"
 	"musicrawler/lib/web/env"
 	"musicrawler/web/controller"
+	"net"
 	"net/http"
 	"time"
 )
@@ -47,7 +48,9 @@ func msg(msg string, err error) {
 
 // Manages a HTTP server to serve audio files saved in database. 
 type Webserver struct {
-	env *env.Environment
+	listener net.Listener
+	addr     string
+	env      *env.Environment
 
 	cartist  *controller.ControllerArtist
 	calbum   *controller.ControllerAlbum
@@ -55,14 +58,15 @@ type Webserver struct {
 }
 
 // Constructor of Webserver. Needs an db.db to work on.
-func New(db *database.Database, stat chan<- *Status) *Webserver {
+func New(db *database.Database, stat chan<- *Status, addr string) *Webserver {
 	// set global variable
 	statusChannel = stat
 
 	env := env.New(db, websitePath)
 
 	w := &Webserver{
-		env: env,
+		addr: addr,
+		env:  env,
 
 		cartist:  controller.NewArtist(env),
 		calbum:   controller.NewAlbum(env),
@@ -74,6 +78,7 @@ func New(db *database.Database, stat chan<- *Status) *Webserver {
 	return w
 }
 
+// establishRoutes sets up routes of HTTP server.
 func (self *Webserver) establishRoutes() {
 	self.env.Router.HandleFunc("/",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -113,8 +118,20 @@ func (self *Webserver) establishRoutes() {
 	http.Handle("/", self.env.Router)
 }
 
-// Starts http server on port 8080 and set routes.
-func (self *Webserver) StartListening() {
-	err := http.ListenAndServe(":8080", nil)
+// Start starts http server that listens on self.addr.
+func (self *Webserver) Start() {
+	l, err := net.Listen("tcp", self.addr)
+	if err != nil {
+		msg("", err)
+	}
+
+	self.listener = l
+
+	err = http.Serve(self.listener, nil)
 	msg("", err)
+}
+
+// Stop stops current HTTP server.
+func (self *Webserver) Stop() {
+	self.listener.Close()
 }

@@ -27,7 +27,9 @@ import (
 	"musicrawler/model/track"
 	"musicrawler/web"
 	"os"
+	"os/signal"
 	"runtime/pprof"
+	"syscall"
 	"time"
 )
 
@@ -153,10 +155,27 @@ func main() {
 
 	status := make(chan *web.Status, 1000)
 
-	w := web.New(mydb, status)
-	go w.StartListening()
+	w := web.New(mydb, status, ":8080")
+	go w.Start()
 
 	fmt.Println("   ...Listening on :8080")
+
+	// React on SIGINT
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			switch sig {
+			case syscall.SIGINT:
+				fmt.Println("Stopping server.")
+
+				w.Stop()
+
+				os.Exit(0)
+				return
+			}
+		}
+	}()
 
 	for s := range status {
 		if *verbosity {
