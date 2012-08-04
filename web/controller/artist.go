@@ -17,12 +17,12 @@
 package controller
 
 import (
-	"fmt"
-	"musicrawler/lib/database"
+	"code.google.com/p/gorilla/mux"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/model/helper"
 	"musicrawler/lib/web/controller"
-	"musicrawler/lib/web/router"
+	"musicrawler/lib/web/env"
+	"musicrawler/lib/web/tmpl"
 	"musicrawler/model/album"
 	"musicrawler/model/artist"
 	"net/http"
@@ -36,20 +36,20 @@ type ControllerArtist struct {
 }
 
 // Constructor.
-func NewArtist(db *database.Database, router *router.Router, filepath string) *ControllerArtist {
+func NewArtist(env *env.Environment) *ControllerArtist {
 	c := &ControllerArtist{
-		controller.Controller: *controller.NewController(db, router, filepath),
+		controller.Controller: *controller.NewController(env),
 	}
 
-	c.AddTemplate("index", "index", "artists")
-	c.AddTemplate("show", "index", "artist")
+	c.Tmpl.AddTemplate("artist_index", "index", "artists")
+	c.Tmpl.AddTemplate("artist_show", "index", "artist")
 
 	return c
 }
 
 // Implementation of SelectHandler.
 func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
-	al, nal, err := artist.FirstLetters(self.Db)
+	al, nal, err := artist.FirstLetters(self.Env.Db)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -67,7 +67,7 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case page == "":
 		// just go to the first page by default
-		page = string(al[0])
+		page = string(letters[0])
 	case len(page) != 1:
 		// No request should contain more than 1 letter.
 		http.NotFound(w, r)
@@ -84,9 +84,9 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 	var artists []artist.Artist
 
 	if string(page) == "0" {
-		err = artist.NonAlphaArtists(self.Db).Exec(&artists)
+		err = artist.NonAlphaArtists(self.Env.Db).Exec(&artists)
 	} else {
-		err = query.New(self.Db, "artist").
+		err = query.New(self.Env.Db, "artist").
 			Like("name", page+"%").Exec(&artists)
 	}
 
@@ -97,67 +97,88 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 
 	// prepare structure for template
 	for i := 0; i < len(artists); i++ {
-		artists[i].Link = fmt.Sprintf("%s/%d", self.Route(), artists[i].Id)
+		url, err := self.URL(
+			"artist",
+			"id", strconv.FormatInt(artists[i].Id, 10))
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		artists[i].Link = url.String()
 	}
 
-	pager := helper.NewPager(self.Route(), strings.Split(letters, ""), page)
+	url, err := self.URL("artist_base")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	self.AddDataToTemplate("index", "Artists", artists)
-	self.AddDataToTemplate("index", "Pager", pager)
+	pager := helper.NewPager(url.String(), strings.Split(letters, ""), page)
+
+	self.Tmpl.AddDataToTemplate("artist_index", "Artists", artists)
+	self.Tmpl.AddDataToTemplate("artist_index", "Pager", pager)
 
 	// render the website
-	self.RenderPage(
+	self.Tmpl.RenderPage(
 		w,
-		"index",
-		&controller.Page{Title: "Artists starting with " + string(page)},
+		"artist_index",
+		&tmpl.Page{Title: "Artists starting with " + string(page)},
 	)
 }
 
-func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request, selector string) {
-	id, err := strconv.Atoi(selector)
+func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err := self.Db.BeginTransaction(); err != nil {
+	if err := self.Env.Db.BeginTransaction(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer self.Db.EndTransaction()
+	defer self.Env.Db.EndTransaction()
 
 	var artist artist.Artist
-	err = query.New(self.Db, "artist").Find(id).Exec(&artist)
+	err = query.New(self.Env.Db, "artist").Find(id).Exec(&artist)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err == query.ErrNoResults {
-		http.NotFound(w, r)
 		return
 	}
 
 	var albums []album.Album
 
-	err = artist.AlbumsQuery(self.Db).Order("name").Exec(&albums)
-	if err != nil && err != query.ErrNoResults {
+	err = artist.AlbumsQuery(self.Env.Db).Order("name").Exec(&albums)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	for i := 0; i < len(albums); i++ {
-		albums[i].Link = fmt.Sprintf("%s/%d",
-			self.Router.GetRouteOf("album"), albums[i].Id)
+		url, err := self.URL(
+			"album",
+			"id", strconv.FormatInt(albums[i].Id, 10))
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err == nil {
+			albums[i].Link = url.String()
+		}
 	}
 
-	self.AddDataToTemplate("show", "Arist", &artist)
-	self.AddDataToTemplate("show", "Albums", &albums)
+	self.Tmpl.AddDataToTemplate("artist_show", "Arist", &artist)
+	self.Tmpl.AddDataToTemplate("artist_show", "Albums", &albums)
 
 	// render the website
-	self.RenderPage(
+	self.Tmpl.RenderPage(
 		w,
-		"show",
-		&controller.Page{Title: artist.Name},
+		"artist_show",
+		&tmpl.Page{Title: artist.Name},
 	)
 }

@@ -17,68 +17,38 @@
 package controller
 
 import (
-	"html/template"
-	"musicrawler/lib/database"
-	"musicrawler/lib/web/router"
-	"net/http"
+	"fmt"
+	"musicrawler/lib/web/env"
+	"musicrawler/lib/web/tmpl"
+	"net/url"
 )
 
-// Basic page structure.
-type Page struct {
-	Title string
-}
-
 type Controller struct {
-	Db     *database.Database
-	route  string
-	Router *router.Router
-
-	templates    map[string]*template.Template
-	templateData map[string]map[string]interface{}
-	filepath     string
+	Env  *env.Environment
+	Tmpl *tmpl.Template
 }
 
 // Constructor. Needs templates to register.
-func NewController(db *database.Database, router *router.Router, filepath string) *Controller {
+func NewController(env *env.Environment) *Controller {
 	return &Controller{
-		Db:           db,
-		Router:       router,
-		filepath:     filepath,
-		templates:    make(map[string]*template.Template),
-		templateData: make(map[string]map[string]interface{}),
+		Env:  env,
+		Tmpl: tmpl.New(env.TmplPath),
 	}
 }
 
-// AddTemplate adds associated templates to the template cache.
-func (self *Controller) AddTemplate(name string, templates ...string) {
-	if len(templates) > 0 {
-		for i := 0; i < len(templates); i++ {
-			templates[i] = self.filepath + "templates/" + templates[i] + ".tpl"
-		}
-		self.templates[name] = template.Must(template.ParseFiles(templates...))
+func (self *Controller) URL(s ...string) (*url.URL, error) {
+
+	r := self.Env.Router.Get(s[0])
+
+	if r == nil {
+		return nil, fmt.Errorf("No such route with name %s.", s[0])
 	}
 
-	self.templateData[name] = make(map[string]interface{})
-}
+	url, err := r.URL(s[1:]...)
 
-func (self *Controller) AddDataToTemplate(template, data_id string, data interface{}) {
-	self.templateData[template][data_id] = data
-}
-
-// Write template with name tmpl to w.
-func (self *Controller) RenderPage(w http.ResponseWriter, tmpl string, p *Page) {
-	self.AddDataToTemplate(tmpl, "Page", p)
-
-	err := self.templates[tmpl].Execute(w, self.templateData[tmpl])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
 	}
-}
 
-func (self *Controller) Route() string {
-	return self.route
-}
-
-func (self *Controller) SetRoute(route string) {
-	self.route = route
+	return url, nil
 }
