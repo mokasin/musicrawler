@@ -45,7 +45,7 @@
 </div>
 
 <!--/ Placed at the end of the document so the pages load faster -->
-<script src="/assets/js/SoundManager2/soundmanager2.js"></script> 
+<script src="/assets/js/SoundManager2/soundmanager2-nodebug-jsmin.js"></script> 
 <script src="/assets/js/soundmanager-settings.js"></script>
 
 <script src="/assets/widgets/360-player/script/berniecode-animator.js"></script>

@@ -82,7 +82,7 @@ func New(db *database.Database, stat chan<- *Status, addr string) *Webserver {
 func (self *Webserver) establishRoutes() {
 	self.env.Router.HandleFunc("/",
 		func(w http.ResponseWriter, r *http.Request) {
-			self.cartist.Show(w, r)
+			self.cartist.Index(w, r)
 		}).Methods("GET")
 
 	self.env.Router.HandleFunc("/artist",
