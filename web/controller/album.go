@@ -52,7 +52,7 @@ func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 	var albums []album.Album
 
 	// retreive all albums
-	err := query.New(self.Env.Db, "album").Exec(&albums)
+	err := query.New(self.Env.Db, "album").Order("name").Exec(&albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

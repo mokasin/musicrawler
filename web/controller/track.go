@@ -18,11 +18,11 @@ package controller
 
 import (
 	//"code.google.com/p/gorilla/mux"
-	"musicrawler/lib/database/query"
+	//"musicrawler/lib/database/query"
 	"musicrawler/lib/web/controller"
 	"musicrawler/lib/web/env"
 	"musicrawler/lib/web/tmpl"
-	"musicrawler/model/artist"
+	//"musicrawler/model/artist"
 	"net/http"
 )
 
@@ -43,24 +43,6 @@ func NewTrack(env *env.Environment) *ControllerTrack {
 }
 
 func (self *ControllerTrack) Index(w http.ResponseWriter, r *http.Request) {
-	if err := self.Env.Db.BeginTransaction(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer self.Env.Db.EndTransaction()
-
-	// retreive artist by id
-	var artists []artist.Artist
-
-	err := query.New(self.Env.Db, "artist").Order("Name").Exec(&artists)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	self.Tmpl.AddDataToTemplate("tracks", "Artists", &artists)
-
 	// render the website
 	self.Tmpl.RenderPage(
 		w,
