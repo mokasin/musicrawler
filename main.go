@@ -41,7 +41,7 @@ func updateTracks() {
 	actionMsg := []string{"-", "M", "A"}
 
 	statusChannel := make(chan *UpdateStatus, 100)
-	resultChannel := make(chan error)
+	resultChannel := make(chan *UpdateResult)
 
 	timeStart := time.Now()
 
@@ -72,13 +72,13 @@ func updateTracks() {
 	}
 
 	r := <-resultChannel
-	if r != nil {
+	if r.Err != nil {
 		fmt.Printf("ERROR: %v", r)
 	}
 	deltaTime := time.Since(timeStart).Seconds()
 
-	fmt.Printf("   Added: %d\tUpdated: %d\tErrors: %d\n",
-		added, updated, errors)
+	fmt.Printf("   Added: %d\tUpdated: %d\tDeleted: %d\tErrors: %d\n",
+		added, updated, r.Deleted, errors)
 	fmt.Printf("   Total: %.4f min. %.2f ms per track.\n", deltaTime/60,
 		deltaTime/float64(added+updated)*1000)
 }
@@ -142,13 +142,6 @@ func main() {
 
 		fmt.Println("-> Update files.")
 		updateTracks()
-
-		//fmt.Print("-> Cleanup database.")
-		//if del, err := index.DeleteDanglingEntries(); err != nil {
-		//	fmt.Println("ERROR:", err)
-		//} else {
-		//	fmt.Printf(" %d tracks deleted.\n", del)
-		//}
 	}
 
 	fmt.Println("-> Starting webserver...\n")

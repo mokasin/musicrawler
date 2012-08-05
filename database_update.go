@@ -53,7 +53,8 @@ type UpdateStatus struct {
 
 // Holds information if the operation was successful.
 type UpdateResult struct {
-	Err error
+	Deleted int64
+	Err     error
 }
 
 // Update is a wrapper for update method, that should be called when using in a
@@ -204,6 +205,37 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 			Err:    statusErr}
 	}
 
+	del, err := deleteDanglingEntries(db)
+
 	close(status)
-	return &UpdateResult{Err: nil}
+	return &UpdateResult{Err: err, Deleted: del}
+}
+
+// Deletes all entries that have an outdated timestamp dbmtime. Also cleans up
+// entries in Artist and Album table that are not referenced anymore in the
+// Track-table.
+//
+// Returns the number of deleted rows and an error.
+func deleteDanglingEntries(db *database.Database) (int64, error) {
+	r, err := db.Execute("DELETE FROM Track WHERE dbmtime <> ?", db.Timestamp())
+	deletedTracks, _ := r.RowsAffected()
+	if err != nil {
+		return deletedTracks, err
+	}
+
+	if _, err := db.Execute("DELETE FROM Album WHERE ID IN " +
+		"(SELECT Album.ID FROM Album LEFT JOIN Track ON " +
+		"Album.ID = Track.album_id WHERE Track.album_id " +
+		"IS NULL);"); err != nil {
+		return deletedTracks, err
+	}
+
+	if _, err := db.Execute("DELETE FROM Artist WHERE ID IN " +
+		"(SELECT Artist.ID FROM Artist LEFT JOIN Album ON " +
+		"Artist.ID = Album.artist_id WHERE Album.artist_id " +
+		"IS NULL);"); err != nil {
+		return deletedTracks, err
+	}
+
+	return deletedTracks, nil
 }

@@ -47,7 +47,7 @@ func (self *SourceList) Remove(e *list.Element) {
 }
 
 func (self *SourceList) Update(statusChannel chan *UpdateStatus,
-	result chan error) {
+	result chan *UpdateResult) {
 
 	trackInfoChannel := make(chan source.TrackInfo, 100)
 	updateResultChannel := make(chan *UpdateResult)
@@ -77,5 +77,5 @@ func (self *SourceList) Update(statusChannel chan *UpdateStatus,
 
 	// wait for database.Update to finish
 	r := <-updateResultChannel
-	result <- r.Err
+	result <- r
 }
