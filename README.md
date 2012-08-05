@@ -21,6 +21,7 @@ via the C-interface for reading tag metadata
 * [go-sqlite3](https://github.com/mattn/go-sqlite3) by Yasuhiro Matsumoto
 * [LESS](http://lesscss.org/)
   (for [Bootstrap](http://twitter.github.com/bootstrap/))
+* [CoffeeScript](http://coffeescript.org/)
 
 Get it
 ------
@@ -30,11 +31,12 @@ Get it
 
 		$ go get github.com/mokasin/musicrawler
 
-	Get *LESS* via Node.js Package Manager
+	Get *LESS* and *CoffeeScript* via Node.js Package Manager
 
 		$ npm -g install less
+		$ npm -g install coffee-script
 
-	or do it your own way. **lessc** should be in an executable
+	or do it your own way. **lessc** and **coffee** should be in an executable
 	path.
 
 Build
@@ -42,7 +44,7 @@ Build
 Fetch go dependencies
 
 	$ go get
-	
+
 get external libs as git submodules
 
 	$ git submodule init

@@ -140,7 +140,8 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 
 	// prepare data for template
 	for i := 0; i < len(tracks); i++ {
-		url, err := self.URL("content", controller.Pairs{"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
+		url, err := self.URL("content", controller.Pairs{
+			"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -218,6 +219,18 @@ func (self *ControllerAlbum) TracksJSON(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// prepare data for template
+	for i := 0; i < len(tracks); i++ {
+		url, err := self.URL("content", controller.Pairs{
+			"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		tracks[i].Link = url
 	}
 
 	b, err := json.Marshal(tracks)

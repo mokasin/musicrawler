@@ -130,7 +130,7 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 func (self *ControllerArtist) IndexJSON(w http.ResponseWriter, r *http.Request) {
 	var artists []artist.Artist
 
-	err := query.New(self.Env.Db, "artist").Exec(&artists)
+	err := query.New(self.Env.Db, "artist").Order("name").Exec(&artists)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

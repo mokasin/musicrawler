@@ -1,19 +1,15 @@
-# $.extend({
-# 	getUrlVars: ->
-# 		hashes = window.location.href.slice(
-# 			window.location.href.indexOf('?') + 1).split('&')
-# 		vars = []
-# 		
-# 		for h in hashes
-# 			hash = h.split('=')
-# 			vars.push(hash[0])
-# 			vars[hash[0]] = hash[1]
-# 
-# 		return vars
-# 	 
-# 	getUrlVar: (name) ->
-# 		$.getUrlVars()[name]
-# })
+#$.playable('/assets/js/SoundManager2/', {
+#		useHTML5Audio: true,
+#		debugMode: true,
+#	})
+
+
+soundManager.setup({
+  url: '/assets/js/SoundManager2/',
+		useHTML5Audio: true,
+		debugMode: true,
+})
+
 
 fillArtists = ->
 	$('.vlists .artist ul li').remove()
@@ -50,16 +46,27 @@ fillTracks = (albumId) ->
 	$.getJSON('/album/' + albumId  + '/tracks.json', (data) ->
 		$.each(data, (key, val) ->
 			$('.vlists .track ul').append(
-				'<li><a href="#" class="track-"' + val.Id + '">' +
-				val.Title +
+				'<li><a href="'+ val.Link +
+				'" class="track-' + val.Id +
+				'">' + val.Title +
 				'</a></li>'
 			)
 		)
 	)
 
+
 $(document).ready ->
-	#vars = $.getUrlVars()
-	
+
+	resizeVLists = ->
+		d =	$('.vlists div div')
+		d.height($(window).height() - d.offset().top)
+
+
+	resizeVLists()
+
+	$(window).resize ->
+		resizeVLists()
+
 	fillArtists()
 
 	#fill with first artist
@@ -67,8 +74,28 @@ $(document).ready ->
 
 	$('.vlists .artist').on('click', 'a', ->
 		fillAlbums($(this).attr('class').split('-')[1])
+
+		$('.vlists .artist li.active').removeClass('active')
+		$(this).parent('li').toggleClass('active', true)
 	)
 
 	$('.vlists .album').on('click', 'a', ->
 		fillTracks($(this).attr('class').split('-')[1])
+
+		$('.vlists .album li.active').removeClass('active')
+		$(this).parent('li').toggleClass('active', true)
+	)
+
+	s = null
+
+	$('.vlists .track').on('click', 'a', (e) ->
+		e.preventDefault()
+
+		s.destruct() if s != null
+		s = soundManager.createSound(
+			{id: $(this).attr('class'), url:$(this).attr('href')})
+		s.play()
+
+		$('.vlists .track li.active').removeClass('active')
+		$(this).parent('li').toggleClass('active', true)
 	)
