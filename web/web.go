@@ -98,12 +98,12 @@ func (self *Webserver) establishRoutes() {
 	self.env.Router.HandleFunc("/album",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.calbum.Index(w, r)
-		}).Methods("GET")
+		}).Methods("GET").Name("album_base")
 
 	self.env.Router.HandleFunc("/album/{id:[0-9]+}",
 		func(w http.ResponseWriter, r *http.Request) {
 			self.calbum.Show(w, r)
-		}).Name("album")
+		}).Methods("GET").Name("album")
 
 	self.env.Router.HandleFunc("/content/{id:[0-9]+}/{filename}",
 		func(w http.ResponseWriter, r *http.Request) {

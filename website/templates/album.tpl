@@ -1,6 +1,6 @@
 {{define "content"}}
-<a class="btn" href="javascript:history.back()">
-	<i class="icon-chevron-left"></i> Back to album
+<a href="{{.Page.BackLink}}" class="btn">
+	<i class="icon-chevron-left"></i> Back to artist
 </a>
 
 <link href="/assets/widgets/360-player/360player.css" rel="stylesheet" />

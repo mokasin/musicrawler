@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"musicrawler/lib/web/env"
 	"musicrawler/lib/web/tmpl"
-	"net/url"
 )
+
+type Pairs map[string]interface{}
 
 // Base controller type. A controller needs access to the enviroment (database,
 // router, ...) and has to manage templates.
@@ -43,19 +44,28 @@ func NewController(env *env.Environment) *Controller {
 // the route. Then pairs of arguments can be given.
 //
 // See gorilla/mux URL-Method for further help.
-func (self *Controller) URL(s ...string) (*url.URL, error) {
-
-	r := self.Env.Router.Get(s[0])
+func (self *Controller) URL(name string, pairs Pairs) (string, error) {
+	r := self.Env.Router.Get(name)
 
 	if r == nil {
-		return nil, fmt.Errorf("No such route with name %s.", s[0])
+		return "", fmt.Errorf("No such route with name %s.", name)
 	}
 
-	url, err := r.URL(s[1:]...)
+	// build []string
+	s := make([]string, len(pairs)*2)
+	i := 0
+
+	for k, v := range pairs {
+		s[i] = k
+		s[i+1] = fmt.Sprintf("%v", v)
+		i += 2
+	}
+
+	url, err := r.URL(s...)
 
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return url, nil
+	return url.String(), nil
 }

@@ -59,12 +59,14 @@ func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 
 	// prepare data for template
 	for i := 0; i < len(albums); i++ {
-		url, err := self.Env.Router.Get("album").URL(
-			"id", strconv.FormatInt(albums[i].Id, 10))
+		url, err := self.URL("album", controller.Pairs{"id": albums[i].Id})
 
-		if err == nil {
-			albums[i].Link = url.String()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+
+		albums[i].Link = url
 	}
 
 	self.Tmpl.AddDataToTemplate("album_index", "Albums", &albums)
@@ -116,29 +118,24 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 
 	// prepare data for template
 	for i := 0; i < len(tracks); i++ {
-		url, err := self.URL(
-			"content",
-			"id", strconv.FormatInt(tracks[i].Id, 10),
-			"filename", filepath.Base(tracks[i].Path),
-		)
+		url, err := self.URL("content", controller.Pairs{"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		if err == nil {
-			tracks[i].Link = url.String()
-		}
+		tracks[i].Link = url
 	}
 
 	self.Tmpl.AddDataToTemplate("album_show", "Album", &album)
 	self.Tmpl.AddDataToTemplate("album_show", "Tracks", &tracks)
 
+	backlink, _ := self.URL("artist", controller.Pairs{"id": album.ArtistID})
+
 	// render the website
 	self.Tmpl.RenderPage(
 		w,
 		"album_show",
-		&tmpl.Page{Title: album.Name},
+		&tmpl.Page{Title: album.Name, BackLink: backlink},
 	)
 }

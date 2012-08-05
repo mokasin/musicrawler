@@ -97,25 +97,23 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 
 	// prepare data for template
 	for i := 0; i < len(artists); i++ {
-		url, err := self.URL(
-			"artist",
-			"id", strconv.FormatInt(artists[i].Id, 10))
+		url, err := self.URL("artist", controller.Pairs{"id": artists[i].Id})
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		artists[i].Link = url.String()
+		artists[i].Link = url
 	}
 
-	url, err := self.URL("artist_base")
+	url, err := self.URL("artist_base", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	pager := helper.NewPager(url.String(), strings.Split(letters, ""), page)
+	pager := helper.NewPager(url, strings.Split(letters, ""), page)
 
 	self.Tmpl.AddDataToTemplate("artist_index", "Artists", artists)
 	self.Tmpl.AddDataToTemplate("artist_index", "Pager", pager)
@@ -163,27 +161,25 @@ func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
 
 	// prepare data for template
 	for i := 0; i < len(albums); i++ {
-		url, err := self.URL(
-			"album",
-			"id", strconv.FormatInt(albums[i].Id, 10))
+		url, err := self.URL("album", controller.Pairs{"id": albums[i].Id})
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if err == nil {
-			albums[i].Link = url.String()
-		}
+		albums[i].Link = url
 	}
 
-	self.Tmpl.AddDataToTemplate("artist_show", "Arist", &artist)
+	self.Tmpl.AddDataToTemplate("artist_show", "Artist", &artist)
 	self.Tmpl.AddDataToTemplate("artist_show", "Albums", &albums)
+
+	backlink, _ := self.URL("artist_base", nil)
 
 	// render the website
 	self.Tmpl.RenderPage(
 		w,
 		"artist_show",
-		&tmpl.Page{Title: artist.Name},
+		&tmpl.Page{Title: artist.Name, BackLink: backlink},
 	)
 }

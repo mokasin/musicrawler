@@ -20,7 +20,7 @@
 			{{range .Artists}}
 				<tr>
 					<td>
-						<a href="{{.Link}}">
+						<a href="{{.Link}}" class="js-pjax">
 							{{.Name}}
 						</a>
 					</td>

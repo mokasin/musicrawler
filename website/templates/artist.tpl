@@ -1,5 +1,5 @@
 {{define "content"}}
-<a class="btn" href="javascript:history.back()">
+<a href="{{.Page.BackLink}}" class="btn">
 	<i class="icon-chevron-left"></i> Back to artists
 </a>
 
@@ -16,7 +16,7 @@
 			{{range .Albums}}
 				<tr>
 					<td>
-						<a href="{{.Link}}">
+						<a href="{{.Link}}" class="js-pjax">
 							{{.Name}}
 						</a>
 					</td>

@@ -33,7 +33,8 @@ import (
 
 // Basic page structure.
 type Page struct {
-	Title string
+	Title    string
+	BackLink string
 }
 
 // Template manages templates and makes them accessible through a name.
