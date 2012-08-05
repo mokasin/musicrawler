@@ -55,6 +55,7 @@ type Webserver struct {
 	cartist  *controller.ControllerArtist
 	calbum   *controller.ControllerAlbum
 	ccontent *controller.ControllerContent
+	ctrack   *controller.ControllerTrack
 }
 
 // Constructor of Webserver. Needs an db.db to work on.
@@ -71,6 +72,7 @@ func New(db *database.Database, stat chan<- *Status, addr string) *Webserver {
 		cartist:  controller.NewArtist(env),
 		calbum:   controller.NewAlbum(env),
 		ccontent: controller.NewContent(env),
+		ctrack:   controller.NewTrack(env),
 	}
 
 	w.establishRoutes()
@@ -82,7 +84,7 @@ func New(db *database.Database, stat chan<- *Status, addr string) *Webserver {
 func (self *Webserver) establishRoutes() {
 	self.env.Router.HandleFunc("/",
 		func(w http.ResponseWriter, r *http.Request) {
-			self.cartist.Show(w, r)
+			self.ctrack.Index(w, r)
 		}).Methods("GET")
 
 	self.env.Router.HandleFunc("/artist",
