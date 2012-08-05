@@ -18,6 +18,7 @@ package controller
 
 import (
 	"code.google.com/p/gorilla/mux"
+	"encoding/json"
 	"musicrawler/lib/database/query"
 	"musicrawler/lib/model/helper"
 	"musicrawler/lib/web/controller"
@@ -126,6 +127,26 @@ func (self *ControllerArtist) Index(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+func (self *ControllerArtist) IndexJSON(w http.ResponseWriter, r *http.Request) {
+	var artists []artist.Artist
+
+	err := query.New(self.Env.Db, "artist").Exec(&artists)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b, err := json.Marshal(artists)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
+}
+
 func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -182,4 +203,69 @@ func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
 		"artist_show",
 		&tmpl.Page{Title: artist.Name, BackLink: backlink},
 	)
+}
+
+func (self *ControllerArtist) ShowJSON(w http.ResponseWriter, r *http.Request) {
+
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// retreive artist by id
+	var artist artist.Artist
+
+	err = query.New(self.Env.Db, "artist").Find(id).Exec(&artist)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b, err := json.Marshal(artist)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
+}
+
+func (self *ControllerArtist) AlbumsJSON(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// retreive artist by id
+	var artist artist.Artist
+
+	err = query.New(self.Env.Db, "artist").Find(id).Exec(&artist)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// retreive albums of artist
+	var albums []album.Album
+
+	err = artist.AlbumsQuery(self.Env.Db).Order("name").Exec(&albums)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b, err := json.Marshal(albums)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
 }

@@ -55,7 +55,7 @@ type RawTrack struct {
 
 type Track struct {
 	Id          int64  `column:"track:ID" set:"0"`
-	Path        string `column:"track:path"`
+	Path        string `column:"track:path" json:"-"`
 	Title       string `column:"track:title"`
 	Tracknumber int    `column:"track:tracknumber"`
 	Year        int    `column:"track:year"`
