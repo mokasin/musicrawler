@@ -37,9 +37,9 @@ type CreateTableFunc func(db *Database) error
 type Result map[string]interface{}
 
 type Database struct {
-	Filename  string
-	db        *sql.DB
-	timestamp int64
+	Filename string
+	db       *sql.DB
+	mtime    int64
 
 	tx       *sql.Tx // global transaction
 	txOpen   bool    // flag true, when exists an open transaction
@@ -68,12 +68,15 @@ func NewDatabase(filename string) (*Database, error) {
 	if _, err := db.Exec("PRAGMA journal_mode=OFF"); err != nil {
 		return nil, err
 	}
+	//if _, err := db.Exec("PRAGMA case_sensitive_like=TRUE"); err != nil {
+	//	return nil, err
+	//}
 
 	return datab, nil
 }
 
-func (self *Database) Timestamp() int64 {
-	return self.timestamp
+func (self *Database) Mtime() int64 {
+	return self.mtime
 }
 
 // Closes the opened database.
@@ -123,9 +126,6 @@ func (self *Database) BeginTransaction() (err error) {
 		return err
 	}
 
-	// Updating timestamp
-	self.timestamp = time.Now().Unix()
-
 	self.txOpen = true
 
 	return nil
@@ -153,6 +153,12 @@ func (self *Database) Execute(sql string, args ...interface{}) (res sql.Result, 
 	}
 
 	res, err = self.tx.Exec(sql, args...)
+
+	if err == nil {
+		// Updating mtime when something has changed
+		self.mtime = time.Now().Unix()
+	}
+
 	return res, err
 }
 

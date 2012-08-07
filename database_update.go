@@ -106,7 +106,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				trackAction = TRACK_UPDATE
 
 			} else {
-				tdbm := &trackDBMtime{db.Timestamp()}
+				tdbm := &trackDBMtime{db.Mtime()}
 				statusErr = mtracks.Update(tm.ID, tdbm)
 			}
 		case err == sql.ErrNoRows: // track is not in database
@@ -133,7 +133,8 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 
 			// if entry exists
 			if aff == 0 {
-				err = query.New(db, "artist").Where("name =", tag.Artist).Exec(artist)
+				err = query.New(db, "artist").
+					Where("name =", tag.Artist).Limit(1).Exec(artist)
 				if err != nil {
 					statusErr = err
 					break
@@ -181,7 +182,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 				Genre:       tag.Genre,
 				AlbumID:     album_id,
 				Filemtime:   ti.Mtime(),
-				DBMtime:     db.Timestamp(),
+				DBMtime:     db.Mtime(),
 			}
 
 			_, err = mtracks.Insert(track)
@@ -194,7 +195,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 		default:
 			// if something is wrong update timestamp, so track is not
 			// deleted the next time
-			tdbm := &trackDBMtime{db.Timestamp()}
+			tdbm := &trackDBMtime{db.Mtime()}
 			mtracks.Update(tm.ID, tdbm)
 			statusErr = err
 		}
@@ -217,7 +218,7 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 //
 // Returns the number of deleted rows and an error.
 func deleteDanglingEntries(db *database.Database) (int64, error) {
-	r, err := db.Execute("DELETE FROM Track WHERE dbmtime <> ?", db.Timestamp())
+	r, err := db.Execute("DELETE FROM Track WHERE dbmtime <> ?", db.Mtime())
 	deletedTracks, _ := r.RowsAffected()
 	if err != nil {
 		return deletedTracks, err

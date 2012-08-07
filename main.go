@@ -155,29 +155,32 @@ func main() {
 
 	// React on SIGINT
 	c := make(chan os.Signal, 1)
+	stopc := make(chan bool)
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for sig := range c {
 			switch sig {
 			case syscall.SIGINT:
 				fmt.Println("Stopping server.")
-
 				w.Stop()
-
-				os.Exit(0)
-				return
+				stopc <- true
 			}
 		}
 	}()
 
-	for s := range status {
-		if *verbosity {
-			if s.Err != nil {
-				fmt.Printf("%v: SERVER ERROR: %v\n", s.Timestamp, s.Err)
-				break
-			} else {
-				fmt.Printf("%v: %s\n", s.Timestamp, s.Msg)
+	for {
+		select {
+		case msg := <-status:
+			if *verbosity {
+				if msg.Err != nil {
+					fmt.Printf("%v: SERVER ERROR: %v\n", msg.Timestamp, msg.Err)
+					break
+				} else {
+					fmt.Printf("%v: %s\n", msg.Timestamp, msg.Msg)
+				}
 			}
+		case <-stopc:
+			return
 		}
 	}
 }
