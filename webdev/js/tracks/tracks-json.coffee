@@ -1,9 +1,3 @@
-#$.playable('/assets/js/SoundManager2/', {
-#		useHTML5Audio: true,
-#		debugMode: true,
-#	})
-
-
 soundManager.setup({
   url: '/assets/js/SoundManager2/',
 		useHTML5Audio: true,
@@ -11,81 +5,93 @@ soundManager.setup({
 })
 
 
-fillArtists = ->
-	$('.vlists .artist ul li').remove()
-
-	$.getJSON('/artist.json', (data) ->
-
-		$.each(data, (key, val) ->
-			$('.vlists .artist ul').append(
-				'<li><a href="#" class="artist-' + val.Id + '">' +
-				val.Name +
-				'</a></li>'
-			)
-		)
+format = (val, str) ->
+	return str.replace(/{(\w+)}/g, (match, id) ->
+		return if typeof(val[id]) == 'undefined' then match else val[id]
 	)
 
-fillAlbums = (artistId) ->
-	$('.vlists .album ul li').remove()
-	# track list isn't up to date
-	$('.vlists .track ul li').remove()
 
-	$.getJSON('/artist/' + artistId  + '/albums.json', (data) ->
-		$.each(data, (key, val) ->
-			$('.vlists .album ul').append(
-				'<li><a href="#" class="album-' + val.Id + '">' +
-				val.Name +
-				'</a></li>'
+list = (o) ->
+	elem = $(o.context)
+
+	o.clear = ->
+		elem.find('ul li').remove()
+
+	o.update = (parentId) ->
+		o.clear()
+
+		query = o.url.replace(/%/g, parentId)
+
+		$.getJSON(query, (data) ->
+			$.each(data, (key, val) ->
+				elem.find('ul').append(
+					format(val, o.template)
+				)
 			)
 		)
-	)
 
-fillTracks = (albumId) ->
-	$('.vlists .track ul li').remove()
+	o.select = (item) ->
+		elem.find('li.active').removeClass('active')
+		item.parent('li').toggleClass('active', true)
 
-	$.getJSON('/album/' + albumId  + '/tracks.json', (data) ->
-		$.each(data, (key, val) ->
-			$('.vlists .track ul').append(
-				'<li><a href="'+ val.Link +
-				'" class="track-' + val.Id +
-				'">' + val.Title +
-				'</a></li>'
-			)
-		)
-	)
+	o.resize = ->
+		elem.height(($(window).height() - elem.offset().top))
+
+	return o
 
 
 $(document).ready ->
 
-	resizeVLists = ->
-		d =	$('.vlists div div')
-		d.height($(window).height() - d.offset().top)
+	# initialize list objects
+	artist = list({
+		name: 'artist',
+		context: '.vlists .artist',
+		url: '/artist.json',
+		template: '<li><a href="#" class="artist-{Id}">{Name}</a></li>'
+	})
 
+	album = list({
+		name: 'album',
+		context: '.vlists .album',
+		url: '/artist/%/albums.json',
+		template: '<li><a href="#" class="album-{Id}">{Name}</a></li>'
+	})
 
-	resizeVLists()
+	track = list({
+		name: 'track',
+		context: '.vlists .track',
+		url: '/album/%/tracks.json',
+		template: '<li><a href="{Link}" class="track-{Id}">{Title}</a></li>'
+	})
 
+	artist.update()
+
+	# fill with first artist
+	album.update(1)
+
+	# EVENTS
+
+	# fit lists to window
 	$(window).resize ->
-		resizeVLists()
+		artist.resize()
+		album.resize()
+		track:w.resize()
 
-	fillArtists()
+	# on click
 
-	#fill with first artist
-	fillAlbums(1)
-
+	# artist
 	$('.vlists .artist').on('click', 'a', ->
-		fillAlbums($(this).attr('class').split('-')[1])
-
-		$('.vlists .artist li.active').removeClass('active')
-		$(this).parent('li').toggleClass('active', true)
+		album.update($(this).attr('class').split('-')[1])
+		artist.select($(this))
 	)
 
+	# album
 	$('.vlists .album').on('click', 'a', ->
-		fillTracks($(this).attr('class').split('-')[1])
-
-		$('.vlists .album li.active').removeClass('active')
-		$(this).parent('li').toggleClass('active', true)
+		track.update($(this).attr('class').split('-')[1])
+		album.select($(this))
 	)
 
+	# track
 	s = null
 
 	$('.vlists .track').on('click', 'a', (e) ->
@@ -96,6 +102,5 @@ $(document).ready ->
 			{id: $(this).attr('class'), url:$(this).attr('href')})
 		s.play()
 
-		$('.vlists .track li.active').removeClass('active')
-		$(this).parent('li').toggleClass('active', true)
+		track.select($(this))
 	)
