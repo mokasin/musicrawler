@@ -206,7 +206,6 @@ func (self *ControllerArtist) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (self *ControllerArtist) ShowJSON(w http.ResponseWriter, r *http.Request) {
-
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -240,20 +239,11 @@ func (self *ControllerArtist) AlbumsJSON(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// retreive artist by id
-	var artist artist.Artist
-
-	err = query.New(self.Env.Db, "artist").Find(id).Exec(&artist)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	// retreive albums of artist
 	var albums []album.Album
 
-	err = artist.AlbumsQuery(self.Env.Db).Order("name").Exec(&albums)
+	err = query.New(self.Env.Db, "album").
+		Where("artist_id =", id).Order("name").Exec(&albums)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
