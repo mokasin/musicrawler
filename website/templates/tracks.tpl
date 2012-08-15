@@ -2,6 +2,13 @@
 <div class="vlists">
 	<div>
 		<h2>Artists</h2>
+		<form id="artist-form" action="#">
+			<div class="input-prepend">
+				<span class="add-on"><i class="icon-search"></i></span>
+				<input type="search" placeholder="Search...">
+			</div>
+		</form>
+
 		<div class="artist">
 			<ul class="nav nav-list">
 			</ul>
@@ -25,7 +32,7 @@
 	</div>
 </div>
 
-<script src="/assets/js/jquery-1.7.2.min.js"></script>
+<script src="/assets/js/jquery-1.8.0.min.js"></script>
 <script src="/assets/js/SoundManager2/soundmanager2.js"></script>
 <script src="/assets/js/tracks-json.js"></script>
 {{end}}

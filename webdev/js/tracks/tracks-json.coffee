@@ -1,3 +1,5 @@
+"use strict"
+
 soundManager.setup({
   url: '/assets/js/SoundManager2/',
 		useHTML5Audio: true,
@@ -40,6 +42,24 @@ list = (o) ->
 	return o
 
 
+$.expr[":"].Contains = $.expr.createPseudo((arg) ->
+    return (elem) ->
+        return $(elem).text().toUpperCase().indexOf(arg.toUpperCase()) >= 0
+)
+
+listFilter = (list, input) ->
+	input.change( ->
+		filter = input.val()
+		if filter
+			list.find('a:not(:Contains(' + filter + '))').parent().slideUp()
+			list.find('a:Contains(' + filter + ')').parent().slideDown()
+		else
+			list.find('li').slideDown()
+	).keyup( ->
+		# fire the above change event after every letter
+		$(this).change()
+	)
+
 $(document).ready ->
 
 	# initialize list objects
@@ -70,6 +90,9 @@ $(document).ready ->
 	album.update(1)
 
 	# EVENTS
+
+
+	listFilter($('.vlists .artist ul'), $('form#artist-form input'))
 
 	# fit lists to window
 	$(window).resize ->
