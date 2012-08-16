@@ -128,6 +128,9 @@ func (self *Database) BeginTransaction() (err error) {
 
 	self.txOpen = true
 
+	// Updating mtime when something has changed
+	self.mtime = time.Now().Unix()
+
 	return nil
 }
 
@@ -153,11 +156,6 @@ func (self *Database) Execute(sql string, args ...interface{}) (res sql.Result, 
 	}
 
 	res, err = self.tx.Exec(sql, args...)
-
-	if err == nil {
-		// Updating mtime when something has changed
-		self.mtime = time.Now().Unix()
-	}
 
 	return res, err
 }
