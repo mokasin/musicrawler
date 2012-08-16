@@ -19,6 +19,7 @@ Dependencies
 via the C-interface for reading tag metadata
 * [gotaglib](http://github.com/mokasin/gotaglib)
 * [go-sqlite3](https://github.com/mattn/go-sqlite3) by Yasuhiro Matsumoto
+* [gorilla/mux](https://code.google.com/p/gorilla/)
 * [LESS](http://lesscss.org/)
   (for [Bootstrap](http://twitter.github.com/bootstrap/))
 
@@ -42,7 +43,7 @@ Build
 Fetch go dependencies
 
 	$ go get
-	
+
 get external libs as git submodules
 
 	$ git submodule init
