@@ -207,7 +207,8 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 	}
 
 	// clean up
-	del, err := deleteDanglingEntries(db)
+	//del, err := deleteDanglingEntries(db)
+	del, err := int64(0), nil
 
 	close(status)
 	return &UpdateResult{Err: err, Deleted: del}
