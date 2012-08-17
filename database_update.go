@@ -162,7 +162,10 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 
 			// if entry exists
 			if aff == 0 {
-				err = query.New(db, "album").Where("name =", tag.Album).Exec(album)
+				err = query.New(db, "album").
+					Where("name =", tag.Album).
+					Where("artist_id =", artist_id).
+					Limit(1).Exec(album)
 				if err != nil {
 					statusErr = err
 					break
