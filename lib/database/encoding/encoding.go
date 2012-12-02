@@ -20,7 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database"
 	"reflect"
 	"strings"
 	"unicode"
@@ -29,7 +29,7 @@ import (
 
 var ErrWrongType error = errors.New("Wrong type.")
 
-// 
+//
 type Entry struct {
 	Column string
 	Value  interface{}
@@ -180,7 +180,7 @@ func DecodeAll(src []database.Result, dest interface{}) error {
 
 // ExtractColumns extracts the column names from a struct's tags
 // and returns them as a slice. str must be a pointer to a struct.
-// 
+//
 // The tag must have the form
 //
 // 		column:"table:columname"

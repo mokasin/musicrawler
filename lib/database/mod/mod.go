@@ -18,8 +18,8 @@ package mod
 
 import (
 	"database/sql"
-	. "musicrawler/lib/database"
-	"musicrawler/lib/database/encoding"
+	. "github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database/encoding"
 )
 
 type Mod struct {

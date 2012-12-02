@@ -18,8 +18,8 @@ package artist
 
 import (
 	"errors"
-	. "musicrawler/lib/database"
-	"musicrawler/lib/database/query"
+	. "github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database/query"
 )
 
 func CreateArtistTable(db *Database) error {

@@ -18,7 +18,7 @@ package query
 
 import (
 	"fmt"
-	. "musicrawler/lib/database/encoding"
+	. "github.com/mokasin/musicrawler/lib/database/encoding"
 )
 
 // Exec queries database with query and writes results into dest. Dest must be a

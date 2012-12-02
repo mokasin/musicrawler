@@ -17,8 +17,8 @@
 package album
 
 import (
-	. "musicrawler/lib/database"
-	"musicrawler/lib/database/query"
+	. "github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database/query"
 )
 
 func CreateAlbumTable(db *Database) error {
@@ -50,7 +50,7 @@ func (self *Album) ArtistQuery(db *Database) *query.Query {
 	return query.New(db, "artist").Where("ID =", self.ArtistID)
 }
 
-// Tracks returns a prepared Query reference 
+// Tracks returns a prepared Query reference
 func (self *Album) TracksQuery(db *Database) *query.Query {
 	return query.New(db, "track").Where("album_id =", self.Id)
 }

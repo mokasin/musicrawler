@@ -17,9 +17,9 @@
 package web
 
 import (
-	"musicrawler/lib/database"
-	"musicrawler/lib/web/env"
-	"musicrawler/web/controller"
+	"github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/web/env"
+	"github.com/mokasin/musicrawler/web/controller"
 	"net"
 	"net/http"
 	"time"
@@ -46,7 +46,7 @@ func msg(msg string, err error) {
 	}
 }
 
-// Manages a HTTP server to serve audio files saved in database. 
+// Manages a HTTP server to serve audio files saved in database.
 type Webserver struct {
 	listener net.Listener
 	addr     string

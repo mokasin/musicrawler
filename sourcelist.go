@@ -18,8 +18,8 @@ package main
 
 import (
 	"container/list"
-	"musicrawler/lib/database"
-	"musicrawler/lib/source"
+	"github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/source"
 )
 
 // Struct to manage different track sources

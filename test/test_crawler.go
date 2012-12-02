@@ -1,8 +1,8 @@
 package test
 
 import (
+	"github.com/mokasin/musicrawler/source"
 	"math/rand"
-	"musicrawler/source"
 )
 
 type testCrawler struct {

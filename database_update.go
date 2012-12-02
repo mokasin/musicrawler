@@ -18,13 +18,13 @@ package main
 
 import (
 	"database/sql"
-	"musicrawler/lib/database"
-	"musicrawler/lib/database/mod"
-	"musicrawler/lib/database/query"
-	"musicrawler/lib/source"
-	"musicrawler/model/album"
-	"musicrawler/model/artist"
-	"musicrawler/model/track"
+	"github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database/mod"
+	"github.com/mokasin/musicrawler/lib/database/query"
+	"github.com/mokasin/musicrawler/lib/source"
+	"github.com/mokasin/musicrawler/model/album"
+	"github.com/mokasin/musicrawler/model/artist"
+	"github.com/mokasin/musicrawler/model/track"
 )
 
 // define databse actions

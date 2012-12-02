@@ -18,8 +18,8 @@ package controller
 
 import (
 	"fmt"
-	"musicrawler/lib/web/env"
-	"musicrawler/lib/web/tmpl"
+	"github.com/mokasin/musicrawler/lib/web/env"
+	"github.com/mokasin/musicrawler/lib/web/tmpl"
 )
 
 type Pairs map[string]interface{}
