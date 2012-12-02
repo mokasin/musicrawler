@@ -2,7 +2,7 @@ package encoding
 
 import (
 	"fmt"
-	"musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database"
 	"testing"
 )
 

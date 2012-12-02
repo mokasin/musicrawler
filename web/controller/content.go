@@ -18,9 +18,9 @@ package controller
 
 import (
 	"code.google.com/p/gorilla/mux"
-	"musicrawler/lib/database/query"
-	"musicrawler/lib/web/controller"
-	"musicrawler/lib/web/env"
+	"github.com/mokasin/musicrawler/lib/database/query"
+	"github.com/mokasin/musicrawler/lib/web/controller"
+	"github.com/mokasin/musicrawler/lib/web/env"
 	"net/http"
 	"strconv"
 )

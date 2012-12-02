@@ -18,13 +18,13 @@ package main
 
 import (
 	"database/sql"
-	"musicrawler/lib/database"
-	"musicrawler/lib/database/mod"
-	"musicrawler/lib/database/query"
-	"musicrawler/lib/source"
-	"musicrawler/model/album"
-	"musicrawler/model/artist"
-	"musicrawler/model/track"
+	"github.com/mokasin/musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database/mod"
+	"github.com/mokasin/musicrawler/lib/database/query"
+	"github.com/mokasin/musicrawler/lib/source"
+	"github.com/mokasin/musicrawler/model/album"
+	"github.com/mokasin/musicrawler/model/artist"
+	"github.com/mokasin/musicrawler/model/track"
 )
 
 // define databse actions
@@ -162,7 +162,10 @@ func updateDatabase(db *database.Database, tracks <-chan source.TrackInfo,
 
 			// if entry exists
 			if aff == 0 {
-				err = query.New(db, "album").Where("name =", tag.Album).Exec(album)
+				err = query.New(db, "album").
+					Where("name =", tag.Album).
+					Where("artist_id =", artist_id).
+					Limit(1).Exec(album)
 				if err != nil {
 					statusErr = err
 					break

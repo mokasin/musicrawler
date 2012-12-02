@@ -17,7 +17,7 @@
 package query
 
 import (
-	. "musicrawler/lib/database"
+	. "github.com/mokasin/musicrawler/lib/database"
 	"strings"
 )
 
@@ -226,7 +226,7 @@ func (self *Query) Join(onTable, onFieldName, ownTable, ownFieldName string) *Qu
 
 // Where returns a derivated Query with an applied constriction. The
 // constriction must be a string of the form
-// 
+//
 // 		<fieldName> <operator>
 //
 // Multiple wheres are concatenation with an AND. The fieldName is compared to the
@@ -248,7 +248,7 @@ func (self *Query) Find(ID int) *Query {
 
 // WhereIn returns a derivated Query with an applied constriction. The
 // constriction must be a string of the form
-// 
+//
 // 		<fieldName>
 //
 // Multiple calls are concatenation with an AND. The fieldName is a set of
@@ -264,7 +264,7 @@ func (self *Query) WhereIn(fieldname string, values ...interface{}) *Query {
 
 // Like returns a derivated Query with an applied constriction. The
 // constriction must be a string of the form
-// 
+//
 // 		<fieldName> <operator>
 //
 // Multiple wheres are concatenation with an AND. The fieldName is compared to the

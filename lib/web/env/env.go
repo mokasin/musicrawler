@@ -18,7 +18,7 @@ package env
 
 import (
 	"code.google.com/p/gorilla/mux"
-	"musicrawler/lib/database"
+	"github.com/mokasin/musicrawler/lib/database"
 )
 
 type Environment struct {

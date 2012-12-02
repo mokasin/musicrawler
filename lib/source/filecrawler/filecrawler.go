@@ -18,7 +18,7 @@ package filecrawler
 
 import (
 	"github.com/mokasin/gotaglib"
-	"musicrawler/lib/source"
+	"github.com/mokasin/musicrawler/lib/source"
 	"os"
 	"path/filepath"
 )
