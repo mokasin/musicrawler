@@ -3,10 +3,10 @@ musicrawler
 
 Description
 -----------
-musicrawler is a fast mp3/ogg/... indexer that offers it's service over the net
+musicrawler is a fast mp3/ogg/... indexer that offers its service over the net
 via HTTP/Json.
 
-Currently tested in Linux. But there is no reason, other platform should not
+Currently tested in Linux. However, there is no reason other platforms should not
 work.
 
 Status
