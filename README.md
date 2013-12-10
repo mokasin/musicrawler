@@ -11,7 +11,7 @@ work.
 
 Status
 ------
-Basic web access works.
+Not longer actively maintained. Basic web access works. But it was more or less a Go playground for me. Therefore the code needs some heavy refactoring, because this project kind of grew into a very basic and incomplete MVC web framework.
 
 Dependencies
 ------------
