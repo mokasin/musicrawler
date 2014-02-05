@@ -22,6 +22,7 @@ via the C-interface for reading tag metadata
 * [gorilla/mux](https://code.google.com/p/gorilla/)
 * [LESS](http://lesscss.org/)
   (for [Bootstrap](http://twitter.github.com/bootstrap/))
+* [CoffeeScript](http://coffeescript.org/)
 
 Get it
 ------
@@ -31,11 +32,12 @@ Get it
 
 		$ go get github.com/mokasin/musicrawler
 
-	Get *LESS* via Node.js Package Manager
+	Get *LESS* and *CoffeeScript* via Node.js Package Manager
 
 		$ npm -g install less
+		$ npm -g install coffee-script
 
-	or do it your own way. **lessc** should be in an executable
+	or do it your own way. **lessc** and **coffee** should be in an executable
 	path.
 
 Build

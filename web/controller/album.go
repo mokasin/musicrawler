@@ -18,6 +18,7 @@ package controller
 
 import (
 	"code.google.com/p/gorilla/mux"
+	"encoding/json"
 	"github.com/mokasin/musicrawler/lib/database/query"
 	"github.com/mokasin/musicrawler/lib/web/controller"
 	"github.com/mokasin/musicrawler/lib/web/env"
@@ -51,7 +52,7 @@ func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 	var albums []album.Album
 
 	// retreive all albums
-	err := query.New(self.Env.Db, "album").Exec(&albums)
+	err := query.New(self.Env.Db, "album").Order("name").Exec(&albums)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -77,6 +78,27 @@ func (self *ControllerAlbum) Index(w http.ResponseWriter, r *http.Request) {
 		"album_index",
 		&tmpl.Page{Title: "Albums"},
 	)
+}
+
+func (self *ControllerAlbum) IndexJSON(w http.ResponseWriter, r *http.Request) {
+	// retreive artist by id
+	var albums []album.Album
+
+	err := query.New(self.Env.Db, "album").Exec(&albums)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b, err := json.Marshal(albums)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
 }
 
 func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +140,8 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 
 	// prepare data for template
 	for i := 0; i < len(tracks); i++ {
-		url, err := self.URL("content", controller.Pairs{"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
+		url, err := self.URL("content", controller.Pairs{
+			"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -138,4 +161,74 @@ func (self *ControllerAlbum) Show(w http.ResponseWriter, r *http.Request) {
 		"album_show",
 		&tmpl.Page{Title: album.Name, BackLink: backlink},
 	)
+}
+
+func (self *ControllerAlbum) ShowJSON(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// retreive album by id
+	var album album.Album
+
+	err = query.New(self.Env.Db, "album").Find(id).Exec(&album)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b, err := json.Marshal(album)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
+}
+
+func (self *ControllerAlbum) TracksJSON(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// retreive tracks of album
+	var tracks []track.Track
+
+	q := query.New(self.Env.Db, "track").Where("album_id =", id).
+		Join("album", "id", "", "album_id").
+		Join("artist", "id", "album", "artist_id")
+
+	err = q.Order("tracknumber").Exec(&tracks)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// prepare data for template
+	for i := 0; i < len(tracks); i++ {
+		url, err := self.URL("content", controller.Pairs{
+			"id": tracks[i].Id, "filename": filepath.Base(tracks[i].Path)})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		tracks[i].Link = url
+	}
+
+	b, err := json.Marshal(tracks)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
 }
